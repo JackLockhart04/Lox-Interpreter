@@ -1,9 +1,8 @@
 use lox_interpreter::util::logger::{LogLevel, global_logger};
+use lox_interpreter::parse::parser::Parser;
 use lox_interpreter::input::scanner::Scanner;
-use lox_interpreter::token::token::{Token, TokenType};
-use lox_interpreter::interpret::expr::{Expr, BinaryExpr, UnaryExpr, GroupingExpr, LiteralExpr, LiteralValue};
-use lox_interpreter::util::ast_printer::AstPrinter;
-use std::env;
+use lox_interpreter::interpret::interpreter::Interpreter;
+// use std::env;
 
 
 fn main() {
@@ -14,59 +13,58 @@ fn main() {
     // We can now call public functions from the logger module using the module path (logger::).
     logger.log(LogLevel::Info, "Initializing configuration settings...");
 
-    // Test ast printer
-    let left = Expr::Unary(UnaryExpr {
-        operator: Token::new_token(TokenType::Minus, "-".to_string(), None, 1),
-        right: Box::new(Expr::Literal(LiteralExpr { value: Some(LiteralValue::Number(123.0)) })),
-    });
+    // Get command line arguments to see if input file is provided
+    let args: Vec<String> = std::env::args().collect();
+    let mut interpreter = Interpreter::new();
 
-    let right = Expr::Grouping(GroupingExpr {
-        expression: Box::new(Expr::Literal(LiteralExpr { value: Some(LiteralValue::Number(45.67)) })),
-    });
+    if args.len() > 1 {
+        let input_path = &args[1];
+        logger.log(LogLevel::Info, format!("Input file provided: {}", input_path));
+        match Scanner::new_from_file(input_path) {
+            Ok(scanner) => {
+                let mut parser = Parser::new(scanner);
+                // Parse expressions until EOF. If parse() returns None and the parser
+                // has reached EOF, stop; otherwise report the error and continue.
+                loop {
+                    match parser.parse() {
+                        Some(expr) => {
+                            let result = interpreter.interpret(&expr);
+                            println!("=> {:?}", result);
+                        }
+                        None => {
+                            if parser.is_at_end() {
+                                break;
+                            }
+                            parser.report_errors();
+                            parser.clear_errors();
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                logger.log(LogLevel::Error, format!("Failed to open file {}: {}", input_path, e));
+            }
+        }
+    } else {
+        logger.log(LogLevel::Info, "No input file provided, starting REPL...");
 
-    let expr = Expr::Binary(BinaryExpr {
-        left: Box::new(left),
-        operator: Token::new_token(TokenType::Star, "*".to_string(), None, 1),
-        right: Box::new(right),
-    });
+        // Interactive REPL: create a Scanner + Parser each loop and interpret the parsed expression.
+        loop {
+            // Create scanner reading from terminal (it will prompt for a line)
+            let scanner = Scanner::new_from_terminal();
+            let mut parser = Parser::new(scanner);
 
-    let mut printer = AstPrinter;
-    let out = printer.print(&expr);
-    println!("{}", out);
-
-    // // Example usage of the Scanner
-    // let args: Vec<String> = env::args().collect();
-    // let is_file = args.len() > 1;
-    // let mut scanner = if is_file {
-    //     match Scanner::new_from_file(&args[1]) {
-    //         Ok(s) => s,
-    //         Err(e) => {
-    //             logger.log(LogLevel::Error, format!("Failed to read file: {}", e));
-    //             return;
-    //         }
-    //     }
-    // } else {
-    //     Scanner::new_from_terminal()
-    // };
-
-    // // Unified loop: only call next_token(); scanner handles buffering and I/O.
-    // loop {
-    //     match scanner.next_token() {
-    //         Some(token) => {
-    //             match token.get_type() {
-    //                 TokenType::Eof => {
-    //                     logger.log(LogLevel::Debug, "Reached end of file");
-    //                     break;
-    //                 }
-    //                 _ => {
-    //                     logger.log(LogLevel::Debug, format!("Read token: '{:?}'", token));
-    //                 }
-    //             }
-    //         }
-    //         None => break,
-    //     }
-    //     // Print current line number for debugging
-    //     let line_num = scanner.get_line_number();
-    //     logger.log(LogLevel::Debug, format!("Current line number: {}", line_num));
-    // }
+            match parser.parse() {
+                Some(expr) => {
+                    let result = interpreter.interpret(&expr);
+                    println!("=> {:?}", result);
+                }
+                None => {
+                    // Parsing failed; print errors (if any) and continue the REPL
+                    parser.report_errors();
+                    parser.clear_errors();
+                }
+            }
+        }
+    }
 }

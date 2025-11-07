@@ -25,7 +25,7 @@ pub struct LiteralExpr {
     pub value: Option<LiteralValue>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LiteralValue {
     Number(f64),
     Str(String),

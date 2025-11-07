@@ -17,7 +17,7 @@ pub struct Scanner {
 impl Scanner {
     // Inits
     pub fn new_from_terminal() -> Self {
-        let mut scanner = Scanner {
+        let scanner = Scanner {
             source: Reader::new_from_terminal(),
             line_number: 0,
             at_eof: false,
@@ -28,7 +28,7 @@ impl Scanner {
     }
 
     pub fn new_from_file(path: &str) -> Result<Self, io::Error> {
-        let mut scanner = Scanner {
+        let scanner = Scanner {
             source: Reader::new_from_file(path)?,
             line_number: 0,
             at_eof: false,
@@ -39,35 +39,35 @@ impl Scanner {
     }
 
     // Methods
-    pub fn check_single_char_token(c: char) -> Option<Token> {
+    pub fn check_single_char_token(&mut self, c: char) -> Option<Token> {
         match c {
-            '(' => Some(Token::new_token(TokenType::LeftParen, "(".to_string(), None, 0)),
-            ')' => Some(Token::new_token(TokenType::RightParen, ")".to_string(), None, 0)),
-            '{' => Some(Token::new_token(TokenType::LeftBrace, "{".to_string(), None, 0)),
-            '}' => Some(Token::new_token(TokenType::RightBrace, "}".to_string(), None, 0)),
-            ',' => Some(Token::new_token(TokenType::Comma, ",".to_string(), None, 0)),
-            '.' => Some(Token::new_token(TokenType::Dot, ".".to_string(), None, 0)),
-            '-' => Some(Token::new_token(TokenType::Minus, "-".to_string(), None, 0)),
-            '+' => Some(Token::new_token(TokenType::Plus, "+".to_string(), None, 0)),
-            ';' => Some(Token::new_token(TokenType::Semicolon, ";".to_string(), None, 0)),
-            '*' => Some(Token::new_token(TokenType::Star, "*".to_string(), None, 0)),
+            '(' => Some(Token::new_token(TokenType::LeftParen, "(".to_string(), None, self.source.get_line_number())),
+            ')' => Some(Token::new_token(TokenType::RightParen, ")".to_string(), None, self.source.get_line_number())),
+            '{' => Some(Token::new_token(TokenType::LeftBrace, "{".to_string(), None, self.source.get_line_number())),
+            '}' => Some(Token::new_token(TokenType::RightBrace, "}".to_string(), None, self.source.get_line_number())),
+            ',' => Some(Token::new_token(TokenType::Comma, ",".to_string(), None, self.source.get_line_number())),
+            '.' => Some(Token::new_token(TokenType::Dot, ".".to_string(), None, self.source.get_line_number())),
+            '-' => Some(Token::new_token(TokenType::Minus, "-".to_string(), None, self.source.get_line_number())),
+            '+' => Some(Token::new_token(TokenType::Plus, "+".to_string(), None, self.source.get_line_number())),
+            ';' => Some(Token::new_token(TokenType::Semicolon, ";".to_string(), None, self.source.get_line_number())),
+            '*' => Some(Token::new_token(TokenType::Star, "*".to_string(), None, self.source.get_line_number())),
             _ => None,
         }
     }
 
-    pub fn check_two_char_token(c1: char, c2: Option<char>) -> Option<Token> {
+    pub fn check_two_char_token(&mut self, c1: char, c2: Option<char>) -> Option<Token> {
         match (c1, c2) {
             // Check for double character tokens
-            ('<', Some('=')) => Some(Token::new_token(TokenType::LessEqual, "<=".to_string(), None, 0)),
-            ('>', Some('=')) => Some(Token::new_token(TokenType::GreaterEqual, ">=".to_string(), None, 0)),
-            ('=', Some('=')) => Some(Token::new_token(TokenType::EqualEqual, "==".to_string(), None, 0)),
-            ('!', Some('=')) => Some(Token::new_token(TokenType::BangEqual, "!=".to_string(), None, 0)),
+            ('<', Some('=')) => Some(Token::new_token(TokenType::LessEqual, "<=".to_string(), None, self.source.get_line_number())),
+            ('>', Some('=')) => Some(Token::new_token(TokenType::GreaterEqual, ">=".to_string(), None, self.source.get_line_number())),
+            ('=', Some('=')) => Some(Token::new_token(TokenType::EqualEqual, "==".to_string(), None, self.source.get_line_number())),
+            ('!', Some('=')) => Some(Token::new_token(TokenType::BangEqual, "!=".to_string(), None, self.source.get_line_number())),
 
             // Check for singles after not doubles
-            ('<', _) => Some(Token::new_token(TokenType::Less, "<".to_string(), None, 0)),
-            ('>', _) => Some(Token::new_token(TokenType::Greater, ">".to_string(), None, 0)),
-            ('=', _) => Some(Token::new_token(TokenType::Equal, "=".to_string(), None, 0)),
-            ('!', _) => Some(Token::new_token(TokenType::Bang, "!".to_string(), None, 0)),
+            ('<', _) => Some(Token::new_token(TokenType::Less, "<".to_string(), None, self.source.get_line_number())),
+            ('>', _) => Some(Token::new_token(TokenType::Greater, ">".to_string(), None, self.source.get_line_number())),
+            ('=', _) => Some(Token::new_token(TokenType::Equal, "=".to_string(), None, self.source.get_line_number())),
+            ('!', _) => Some(Token::new_token(TokenType::Bang, "!".to_string(), None, self.source.get_line_number())),
 
             _ => None,
         }
@@ -128,6 +128,11 @@ impl Scanner {
     // Main token loading function
     pub fn load_token(&mut self) {
         let logger = global_logger();
+        // If we've already hit EOF previously, keep the EOF token in the cache and return silently.
+        if self.at_eof {
+            self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
+            return;
+        }
         // logger.log(LogLevel::Debug, "Loading next token");
         let first_char_wrapper = self.source.next_char();
         // logger.log(LogLevel::Debug, format!("First char for token: '{:?}'", first_char_wrapper));
@@ -137,7 +142,8 @@ impl Scanner {
             None => {
                 // Reached EOF
                 logger.log(LogLevel::Debug, "Reached EOF or unrecognized character, setting EOF token");
-                self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, 0);
+                self.at_eof = true;
+                self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
                 return;
             }
         };
@@ -149,7 +155,7 @@ impl Scanner {
         }
 
         // Single token chars
-        if let Some(single_char_token) = Scanner::check_single_char_token(first_char) {
+        if let Some(single_char_token) = self.check_single_char_token(first_char) {
             // It's a single-character token
             self.next_token_cache = single_char_token;
             return;
@@ -157,7 +163,7 @@ impl Scanner {
 
         // Two character tokens
         let second_char_wrapper = self.source.peek_char();
-        if let Some(two_char_token) = Scanner::check_two_char_token(first_char, second_char_wrapper) {
+        if let Some(two_char_token) = self.check_two_char_token(first_char, second_char_wrapper) {
             // It's a two-character token
             self.source.next_char(); // Consume the second character
             self.next_token_cache = two_char_token;
@@ -205,7 +211,8 @@ impl Scanner {
             }
             // If we reach here, the string was not terminated
             logger.log(LogLevel::Error, "Unterminated string literal");
-            self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, 0);
+            self.at_eof = true;
+            self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
             return;
         }
 
@@ -248,6 +255,12 @@ impl Scanner {
                 }
             }
 
+            // let number_value = number_content.parse::<f64>();
+            // if number_value.is_err() {
+            //     logger.log(LogLevel::Error, "Invalid number format");
+            //     self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, 0);
+            //     return;
+            // }
             self.next_token_cache = Token::new_token(TokenType::Number, number_content, None, self.source.get_line_number());
             return;
         }
@@ -272,7 +285,8 @@ impl Scanner {
         }
 
         logger.log(LogLevel::Debug, "Reached EOF or unrecognized character, setting EOF token");
-        self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, 0);
+        self.at_eof = true;
+        self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
     }
 
     pub fn next_token(&mut self) -> Option<Token> {
@@ -289,10 +303,16 @@ impl Scanner {
             self.load_token();
             self.next_token_loaded = true;
         }
-        Some(self.next_token_cache.clone())
+
+        return Some(self.next_token_cache.clone());
     }
 
     pub fn get_line_number(&self) -> usize {
-        self.line_number
+        return self.line_number;
+    }
+
+    #[allow(dead_code)]
+    pub fn is_at_end(&self) -> bool {
+        return self.at_eof;
     }
 }

@@ -16,3 +16,17 @@ Use Rusts cargo to build to an executable
 
     Run `cargo test` for normal
     Run `cargo test --test '*'` for easier to read output
+
+# Git
+
+### Add files
+
+    Run `git add .` to add all files
+
+### Commit
+
+    Run `git commit -m "<message>"` to commit to local repo
+
+### Push
+
+    Run `git push origin main`

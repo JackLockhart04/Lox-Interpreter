@@ -1,4 +1,4 @@
-use crate::interpret::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
+use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
 
 /// The AstPrinter implements the Visitor trait to produce a string representation of the AST.
 pub struct AstPrinter;
