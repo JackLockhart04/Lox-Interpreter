@@ -16,6 +16,7 @@
 
 // Strings and concatenation
 "hello" + " " + "world";
+"the number four: " + 4;
 
 // Comparisons
 3 > 2;

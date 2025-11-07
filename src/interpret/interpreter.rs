@@ -96,17 +96,16 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
 					return Ok(Some(LiteralValue::Number(a + b)));
 				}
-				// Str + Str
-				match (&left_val, &right_val) {
-					(Some(LiteralValue::Str(a)), Some(LiteralValue::Str(b))) => {
-						let mut s = a.clone();
-						s.push_str(b);
-						return Ok(Some(LiteralValue::Str(s)));
-					}
-					_ => {
-						return Err(RuntimeError::new(_expr.operator.clone(), "Operands must be two numbers or two strings."));
-					}
+
+				// If either operand is a string, convert both to strings and concatenate.
+				if matches!(left_val, Some(LiteralValue::Str(_))) || matches!(right_val, Some(LiteralValue::Str(_))) {
+					let left_s = self.stringify(&left_val);
+					let right_s = self.stringify(&right_val);
+					return Ok(Some(LiteralValue::Str(format!("{}{}", left_s, right_s))));
 				}
+
+				// Otherwise it's a type error
+				return Err(RuntimeError::new(_expr.operator.clone(), "Operands must be two numbers or two strings."));
 			}
 			TokenType::Greater => {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
