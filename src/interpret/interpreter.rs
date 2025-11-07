@@ -23,11 +23,36 @@ impl Interpreter {
 	pub fn new() -> Self {
 		Interpreter
 	}
+}
 
-	/// Helper to interpret an expression tree. Returns Ok(Some(value)) on success,
-	/// Ok(None) for nil, or Err(RuntimeError) if a runtime error occurred.
-	pub fn interpret(&mut self, expr: &Expr) -> Result<Option<LiteralValue>, RuntimeError> {
-		expr.accept(self)
+
+impl Interpreter {
+	/// Public API: evaluate the expression and print the result. If a runtime
+	/// error occurs, report it via the Lox runtime_error handler and continue.
+	pub fn interpret(&mut self, expr: &Expr) {
+		match self.evaluate(expr) {
+			Ok(value) => {
+				println!("{}", self.stringify(&value));
+			}
+			Err(e) => {
+				crate::lox::runtime_error(&e.token, &e.message);
+			}
+		}
+	}
+
+	fn stringify(&self, object: &Option<LiteralValue>) -> String {
+		match object {
+			None => "nil".to_string(),
+			Some(LiteralValue::Number(n)) => {
+				let mut text = format!("{}", n);
+				if text.ends_with(".0") {
+					text.truncate(text.len() - 2);
+				}
+				text
+			}
+			Some(LiteralValue::Str(s)) => s.clone(),
+			Some(LiteralValue::Bool(b)) => b.to_string(),
+		}
 	}
 }
 
