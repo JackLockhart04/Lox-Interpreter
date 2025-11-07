@@ -28,8 +28,12 @@ fn main() {
                 loop {
                     match parser.parse() {
                         Some(expr) => {
-                            let result = interpreter.interpret(&expr);
-                            println!("=> {:?}", result);
+                                    match interpreter.interpret(&expr) {
+                                        Ok(res) => println!("=> {:?}", res),
+                                        Err(e) => {
+                                            logger.log(LogLevel::Error, format!("[line {}] Runtime error at '{}': {}", e.token.line, e.token.lexeme, e.message));
+                                        }
+                                    }
                         }
                         None => {
                             if parser.is_at_end() {
@@ -56,8 +60,12 @@ fn main() {
 
             match parser.parse() {
                 Some(expr) => {
-                    let result = interpreter.interpret(&expr);
-                    println!("=> {:?}", result);
+                    match interpreter.interpret(&expr) {
+                        Ok(res) => println!("=> {:?}", res),
+                        Err(e) => {
+                            logger.log(LogLevel::Error, format!("[line {}] Runtime error at '{}': {}", e.token.line, e.token.lexeme, e.message));
+                        }
+                    }
                 }
                 None => {
                     // Parsing failed; print errors (if any) and continue the REPL

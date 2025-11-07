@@ -1,5 +1,5 @@
 use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
-use crate::token::token::TokenType;
+use crate::token::token::{TokenType, Token};
 use crate::util::logger::{global_logger, LogLevel};
 
 /// The Interpreter evaluates expressions and returns runtime values.
@@ -7,22 +7,35 @@ use crate::util::logger::{global_logger, LogLevel};
 /// and only provides the literal evaluation as described (returns the literal's value).
 pub struct Interpreter;
 
+#[derive(Debug, Clone)]
+pub struct RuntimeError {
+	pub token: Token,
+	pub message: String,
+}
+
+impl RuntimeError {
+	pub fn new(token: Token, message: &str) -> Self {
+		RuntimeError { token, message: message.to_string() }
+	}
+}
+
 impl Interpreter {
 	pub fn new() -> Self {
 		Interpreter
 	}
 
-	/// Helper to interpret an expression tree.
-	pub fn interpret(&mut self, expr: &Expr) -> Option<LiteralValue> {
+	/// Helper to interpret an expression tree. Returns Ok(Some(value)) on success,
+	/// Ok(None) for nil, or Err(RuntimeError) if a runtime error occurred.
+	pub fn interpret(&mut self, expr: &Expr) -> Result<Option<LiteralValue>, RuntimeError> {
 		expr.accept(self)
 	}
 }
 
-impl Visitor<Option<LiteralValue>> for Interpreter {
-	fn visit_binary_expr(&mut self, _expr: &BinaryExpr) -> Option<LiteralValue> {
+impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
+	fn visit_binary_expr(&mut self, _expr: &BinaryExpr) -> Result<Option<LiteralValue>, RuntimeError> {
 		// Evaluate operands
-		let left_val = self.evaluate(&_expr.left);
-		let right_val = self.evaluate(&_expr.right);
+		let left_val = self.evaluate(&_expr.left)?;
+		let right_val = self.evaluate(&_expr.right)?;
 
 		let logger = global_logger();
 
@@ -36,122 +49,112 @@ impl Visitor<Option<LiteralValue>> for Interpreter {
 
 		match _expr.operator.get_type() {
 			TokenType::Minus => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Number(a - b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '-'\n");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Number(a - b)));
 			}
 			TokenType::Slash => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Number(a / b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '/'\n");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Number(a / b)));
 			}
 			TokenType::Star => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Number(a * b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '*'\n");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Number(a * b)));
 			}
 			TokenType::Plus => {
 				// Number + Number
 				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Number(a + b));
+					return Ok(Some(LiteralValue::Number(a + b)));
 				}
 				// Str + Str
 				match (&left_val, &right_val) {
 					(Some(LiteralValue::Str(a)), Some(LiteralValue::Str(b))) => {
 						let mut s = a.clone();
 						s.push_str(b);
-						return Some(LiteralValue::Str(s));
+						return Ok(Some(LiteralValue::Str(s)));
 					}
 					_ => {
-						logger.log(LogLevel::Error, "Operands must be two numbers or two strings for '+'.\n");
-						return None;
+						return Err(RuntimeError::new(_expr.operator.clone(), "Operands must be two numbers or two strings."));
 					}
 				}
 			}
 			TokenType::Greater => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Bool(a > b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '>'.\n");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Bool(a > b)));
 			}
 			TokenType::GreaterEqual => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Bool(a >= b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '>='.\n");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Bool(a >= b)));
 			}
 			TokenType::Less => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Bool(a < b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '<'.\n");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Bool(a < b)));
 			}
 			TokenType::LessEqual => {
-				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Some(LiteralValue::Bool(a <= b));
-				}
-				logger.log(LogLevel::Error, "Operands must be numbers for '<='.");
-				return None;
+				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
+				let a = as_number(&left_val).unwrap();
+				let b = as_number(&right_val).unwrap();
+				return Ok(Some(LiteralValue::Bool(a <= b)));
 			}
 			TokenType::BangEqual => {
-				return Some(LiteralValue::Bool(!Interpreter::is_equal(&left_val, &right_val)));
+				return Ok(Some(LiteralValue::Bool(!Interpreter::is_equal(&left_val, &right_val))));
 			}
 			TokenType::EqualEqual => {
-				return Some(LiteralValue::Bool(Interpreter::is_equal(&left_val, &right_val)));
+				return Ok(Some(LiteralValue::Bool(Interpreter::is_equal(&left_val, &right_val))));
 			}
 			_ => {
 				// Unsupported operator
 				logger.log(LogLevel::Error, "Unsupported binary operator.");
-				return None;
+				return Ok(None);
 			}
 		}
 	}
 
-	fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Option<LiteralValue> {
+	fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Result<Option<LiteralValue>, RuntimeError> {
 		// Evaluate the inner expression
 		self.evaluate(&expr.expression)
 	}
 
-	fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Option<LiteralValue> {
+	fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Result<Option<LiteralValue>, RuntimeError> {
 		// Return the literal's runtime value directly, per the spec.
-		expr.value.clone()
+		Ok(expr.value.clone())
 	}
 
-	fn visit_unary_expr(&mut self, _expr: &UnaryExpr) -> Option<LiteralValue> {
-		let right = self.evaluate(&_expr.right);
-		let logger = global_logger();
+	fn visit_unary_expr(&mut self, _expr: &UnaryExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+		let right = self.evaluate(&_expr.right)?;
 		match _expr.operator.get_type() {
 			TokenType::Minus => {
-				match right {
-					Some(LiteralValue::Number(n)) => return Some(LiteralValue::Number(-n)),
-					_ => {
-						logger.log(LogLevel::Error, "Operand must be a number for unary '-'.");
-						return None;
-					}
+				self.check_number_operand(&_expr.operator, &right)?;
+				if let Some(LiteralValue::Number(n)) = right {
+					return Ok(Some(LiteralValue::Number(-n)));
 				}
+				// Should never reach here because check_number_operand returns Err otherwise
+				return Ok(None);
 			}
 			TokenType::Bang => {
-				return Some(LiteralValue::Bool(!Interpreter::is_truthy(&right)));
+				return Ok(Some(LiteralValue::Bool(!Interpreter::is_truthy(&right))));
 			}
 			_ => {
+				let logger = global_logger();
 				logger.log(LogLevel::Error, "Unsupported unary operator.");
-				return None;
+				return Ok(None);
 			}
 		}
 	}
 }
-
 impl Interpreter {
-	fn evaluate(&mut self, expr: &Expr) -> Option<LiteralValue> {
+	fn evaluate(&mut self, expr: &Expr) -> Result<Option<LiteralValue>, RuntimeError> {
 		expr.accept(self)
 	}
 
@@ -172,6 +175,20 @@ impl Interpreter {
 		}
 		// Both Some -> compare
 		return a == b;
+	}
+
+	fn check_number_operand(&self, operator: &Token, operand: &Option<LiteralValue>) -> Result<(), RuntimeError> {
+		match operand {
+			Some(LiteralValue::Number(_)) => Ok(()),
+			_ => Err(RuntimeError::new(operator.clone(), "Operand must be a number.")),
+		}
+	}
+
+	fn check_number_operands(&self, operator: &Token, left: &Option<LiteralValue>, right: &Option<LiteralValue>) -> Result<(), RuntimeError> {
+		match (left, right) {
+			(Some(LiteralValue::Number(_)), Some(LiteralValue::Number(_))) => Ok(()),
+			_ => Err(RuntimeError::new(operator.clone(), "Operands must be numbers.")),
+		}
 	}
 }
 

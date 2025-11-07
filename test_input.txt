@@ -1,6 +1,1 @@
-Hello World!
-This is a test file.
-abcdefghijklmnopqrstuvwxyz!@#$%^&*()-_|[]{}~`';:/<>,.+=
-
-
-line 6
+(1 + 2) * 3;
