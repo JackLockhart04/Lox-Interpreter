@@ -1,4 +1,5 @@
 use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
+use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
 use crate::util::logger::{global_logger, LogLevel};
 
@@ -27,19 +28,6 @@ impl Interpreter {
 
 
 impl Interpreter {
-	/// Public API: evaluate the expression and print the result. If a runtime
-	/// error occurs, report it via the Lox runtime_error handler and continue.
-	pub fn interpret(&mut self, expr: &Expr) {
-		match self.evaluate(expr) {
-			Ok(value) => {
-				println!("{}", self.stringify(&value));
-			}
-			Err(e) => {
-				crate::lox::runtime_error(&e.token, &e.message);
-			}
-		}
-	}
-
 	fn stringify(&self, object: &Option<LiteralValue>) -> String {
 		match object {
 			None => "nil".to_string(),
@@ -52,6 +40,31 @@ impl Interpreter {
 			}
 			Some(LiteralValue::Str(s)) => s.clone(),
 			Some(LiteralValue::Bool(b)) => b.to_string(),
+		}
+	}
+
+	/// Execute a list of statements (a program). Errors are reported via
+	/// crate::lox::runtime_error but the interpreter continues executing
+	/// subsequent statements.
+	pub fn interpret(&mut self, statements: &Vec<Stmt>) {
+		for stmt in statements {
+			if let Err(e) = self.execute(stmt) {
+				crate::lox::runtime_error(&e.token, &e.message);
+			}
+		}
+	}
+
+	fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+		stmt.accept(self)
+	}
+
+}
+
+impl Interpreter {
+	/// Execute a single statement and report runtime errors via Lox runtime_error.
+	pub fn interpret_stmt(&mut self, stmt: &Stmt) {
+		if let Err(e) = self.execute(stmt) {
+			crate::lox::runtime_error(&e.token, &e.message);
 		}
 	}
 }
@@ -175,6 +188,19 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 				return Ok(None);
 			}
 		}
+	}
+}
+impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
+	fn visit_expression_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+		// Evaluate and discard the value
+		let _ = self.evaluate(expr)?;
+		Ok(())
+	}
+
+	fn visit_print_stmt(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+		let val = self.evaluate(expr)?;
+		println!("{}", self.stringify(&val));
+		Ok(())
 	}
 }
 impl Interpreter {

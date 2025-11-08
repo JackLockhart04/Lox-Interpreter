@@ -280,7 +280,28 @@ impl Scanner {
             }
 
             // FIXME to check for reserved keywords here
-            self.next_token_cache = Token::new_token(TokenType::Identifier, identifier_content, None, self.source.get_line_number());
+            // Map reserved keywords to their token types
+            let token_type = match identifier_content.as_str() {
+                "and" => TokenType::And,
+                "class" => TokenType::Class,
+                "else" => TokenType::Else,
+                "false" => TokenType::False,
+                "for" => TokenType::For,
+                "fun" => TokenType::Fun,
+                "if" => TokenType::If,
+                "nil" => TokenType::Nil,
+                "or" => TokenType::Or,
+                "print" => TokenType::Print,
+                "return" => TokenType::Return,
+                "super" => TokenType::Super,
+                "this" => TokenType::This,
+                "true" => TokenType::True,
+                "var" => TokenType::Var,
+                "while" => TokenType::While,
+                _ => TokenType::Identifier,
+            };
+
+            self.next_token_cache = Token::new_token(token_type, identifier_content, None, self.source.get_line_number());
             return;
         }
 

@@ -23,22 +23,13 @@ fn main() {
         match Scanner::new_from_file(input_path) {
             Ok(scanner) => {
                 let mut parser = Parser::new(scanner);
-                // Parse expressions until EOF. If parse() returns None and the parser
-                // has reached EOF, stop; otherwise report the error and continue.
-                loop {
-                    match parser.parse() {
-                        Some(expr) => {
-                            // Interpreter::interpret prints the result or reports runtime errors.
-                            interpreter.interpret(&expr);
-                        }
-                        None => {
-                            if parser.is_at_end() {
-                                break;
-                            }
-                            parser.report_errors();
-                            parser.clear_errors();
-                        }
-                    }
+                // Parse the whole file into statements and run them.
+                let statements = parser.parse();
+                if parser.had_error() {
+                    parser.report_errors();
+                    parser.clear_errors();
+                } else {
+                    interpreter.interpret(&statements);
                 }
             }
             Err(e) => {
@@ -48,21 +39,24 @@ fn main() {
     } else {
         logger.log(LogLevel::Info, "No input file provided, starting REPL...");
 
-        // Interactive REPL: create a Scanner + Parser each loop and interpret the parsed expression.
+        // Interactive REPL: parse and execute one statement per loop iteration.
         loop {
             // Create scanner reading from terminal (it will prompt for a line)
             let scanner = Scanner::new_from_terminal();
             let mut parser = Parser::new(scanner);
 
-            match parser.parse() {
-                Some(expr) => {
-                    // Interpreter::interpret prints the result or reports runtime errors.
-                    interpreter.interpret(&expr);
+            // Parse a single statement (so the REPL doesn't try to read until EOF).
+            match parser.parse_statement() {
+                Some(stmt) => {
+                    interpreter.interpret_stmt(&stmt);
                 }
                 None => {
-                    // Parsing failed; print errors (if any) and continue the REPL
-                    parser.report_errors();
-                    parser.clear_errors();
+                    // Parsing failed for this input; show errors and continue the REPL
+                    if parser.had_error() {
+                        parser.report_errors();
+                        parser.clear_errors();
+                    }
+                    continue;
                 }
             }
         }

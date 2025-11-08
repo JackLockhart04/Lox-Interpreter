@@ -1,6 +1,7 @@
 use crate::input::scanner::Scanner;
 use crate::token::token::{Token, TokenType};
 use crate::parse::expr::{Expr, BinaryExpr, UnaryExpr, GroupingExpr, LiteralExpr, LiteralValue};
+use crate::parse::stmt::Stmt;
 use crate::util::logger::{global_logger, LogLevel};
 
 #[derive(Debug, Clone)]
@@ -77,7 +78,14 @@ impl Parser {
 
     /// Return true if the underlying token source (scanner) has reached EOF.
     pub fn is_at_end(&mut self) -> bool {
-        self.token_source.is_at_end()
+        // Previously this delegated to the scanner's `is_at_end()` flag.
+        // That can race with the parser's control flow if the scanner only
+        // creates the EOF token when asked; instead check the next token
+        // directly so the parser stops parsing when the next token is EOF.
+        match self.token_source.peek_token() {
+            Some(tok) => tok.get_type() == TokenType::Eof,
+            None => true,
+        }
     }
 
     fn synchronize(&mut self) {
@@ -110,37 +118,71 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        let expr = self.expression();
-        // if the program is expected to be a statement (like in the Lox REPL).
-        if expr.is_some() {
-            // Check for ';' and consume it. This is usually handled by a 'consume'
-            // method in Lox parsers that signals an error if the token is missing.
-            match self.token_source.peek_token() {
-                Some(token) if token.get_type() == TokenType::Semicolon => {
-                    // Success, expression followed by ';'
-                    self.token_source.next_token();
-                    return expr;
-                }
-                Some(_token) => {
-                    // Found a token, but it's not a Semicolon
-                    // Add an error and return None
-                    self.error(_token, "Expect ';' after expression statement.");
-                    return None;
-                    // return Err(self.error(token, "Expect ';' after expression statement."));
-                }
-                None => {
-                    // Reached EOF, which is sometimes okay, but often an error if ';' was expected.
-                    // Assuming an error if not followed by a semicolon for now.
-                    self.error(Token::new_token(TokenType::Eof, "".to_string(), None, 0), "Expect ';' after expression statement.");
-                    return None;
-                }
+    /// Parse a full program: a sequence of statements until EOF.
+    pub fn parse(&mut self) -> Vec<Stmt> {
+        let mut statements: Vec<Stmt> = Vec::new();
+        while !self.is_at_end() {
+            if let Some(stmt) = self.statement() {
+                statements.push(stmt);
+            } else {
+                // If statement parsing failed, synchronize and continue.
+                // Errors will have been recorded inside `error`.
+                self.synchronize();
             }
         }
-        
-        // If the expression itself failed to parse, just return the failure
-        self.error(Token::new_token(TokenType::Eof, "".to_string(), None, 0), "Expect expression. (from parse())");
-        return None;
+        statements
+    }
+
+    /// Return whether the parser has recorded a parsing error.
+    pub fn had_error(&self) -> bool {
+        self.had_error
+    }
+
+    fn statement(&mut self) -> Option<Stmt> {
+        if self.match_token(&[TokenType::Print]) {
+            // match_token only peeks; consume the 'print' token so
+            // print_statement() can parse the following expression.
+            let _ = self.token_source.next_token();
+            return self.print_statement();
+        }
+        return self.expression_statement();
+    }
+
+    /// Public wrapper to parse a single statement (useful for REPL loops).
+    pub fn parse_statement(&mut self) -> Option<Stmt> {
+        self.statement()
+    }
+
+    fn print_statement(&mut self) -> Option<Stmt> {
+        // We have already consumed the 'print' in match_token; parse the expression
+        let expr = self.expression();
+        // consume semicolon
+        if self.consume(TokenType::Semicolon, "Expect ';' after value.").is_none() {
+            return None;
+        }
+        expr.map(|e| Stmt::Print(e))
+    }
+
+    fn expression_statement(&mut self) -> Option<Stmt> {
+        let expr = self.expression();
+        if self.consume(TokenType::Semicolon, "Expect ';' after expression.").is_none() {
+            return None;
+        }
+        expr.map(|e| Stmt::Expression(e))
+    }
+
+    fn consume(&mut self, ttype: TokenType, message: &str) -> Option<Token> {
+        match self.token_source.peek_token() {
+            Some(tok) if tok.get_type() == ttype => return self.token_source.next_token(),
+            Some(tok) => {
+                self.error(tok, message);
+                return None;
+            }
+            None => {
+                self.error(Token::new_token(TokenType::Eof, "".to_string(), None, 0), message);
+                return None;
+            }
+        }
     }
 
     fn expression(&mut self) -> Option<Expr> {
