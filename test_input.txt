@@ -57,4 +57,26 @@ print "sum: " + (1 + 2);
 print ("mix" + 3) + " done";
 print !(1 == 2);
 
+// Variable redefinition (allowed)
+var v = "before";
+print v;
+var v = "after";
+print v;
+
+// Reference before declaration -> runtime error when executed
+print before_decl;
+var before_decl = "now defined";
+print before_decl;
+
+// Initializer referencing previously defined variable
+var p = 5;
+var q = p + 2;
+print q;
+
+// Redeclare and use previous value in initializer
+var num = 1;
+print num;
+var num = num + 1;
+print num;
+
 // Final newline below

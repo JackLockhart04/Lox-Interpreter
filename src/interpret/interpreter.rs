@@ -1,13 +1,13 @@
 use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
 use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
-use std::collections::HashMap;
+use crate::interpret::environment::Environment;
 use crate::util::logger::{global_logger, LogLevel};
 
 /// The Interpreter evaluates expressions and returns runtime values.
 /// It keeps a simple global environment (flat scope) for variable declarations.
 pub struct Interpreter {
-	globals: HashMap<String, Option<LiteralValue>>,
+	environment: Environment,
 }
 
 #[derive(Debug, Clone)]
@@ -24,7 +24,7 @@ impl RuntimeError {
 
 impl Interpreter {
 	pub fn new() -> Self {
-		Interpreter { globals: HashMap::new() }
+		Interpreter { environment: Environment::new() }
 	}
 }
 
@@ -193,10 +193,9 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 	}
 
 		fn visit_variable_expr(&mut self, name: &Token) -> Result<Option<LiteralValue>, RuntimeError> {
-			let key = name.lexeme.clone();
-			match self.globals.get(&key) {
-				Some(val) => Ok(val.clone()),
-				None => Err(RuntimeError::new(name.clone(), &format!("Undefined variable '{}'.", key))),
+			match self.environment.get(name) {
+				Ok(val) => Ok(val),
+				Err(msg) => Err(RuntimeError::new(name.clone(), &msg)),
 			}
 		}
 }
@@ -217,7 +216,7 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 			Some(expr) => self.evaluate(expr)?,
 			None => None,
 		};
-		self.globals.insert(name.lexeme.clone(), value);
+		self.environment.define(&name.lexeme, value);
 		Ok(())
 	}
 }
