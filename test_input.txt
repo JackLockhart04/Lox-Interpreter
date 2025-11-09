@@ -176,3 +176,20 @@ if (first) if (second) print "both"; else print "dangling else bound to inner"; 
 print a; // global a
 print b; // global b
 print c; // global c
+// While loop tests
+print "---- while tests ----";
+var i = 0;
+while (i < 3) {
+	print i;
+	i = i + 1;
+}
+print "while-done";
+
+// Sum with while
+var sum = 0;
+var k = 1;
+while (k <= 5) {
+	sum = sum + k;
+	k = k + 1;
+}
+print sum; // should print 15

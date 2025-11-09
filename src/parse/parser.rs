@@ -179,6 +179,11 @@ impl Parser {
             let _ = self.token_source.next_token();
             return self.if_statement();
         }
+        if self.match_token(&[TokenType::While]) {
+            // consume 'while'
+            let _ = self.token_source.next_token();
+            return self.while_statement();
+        }
         // Block statement
         if self.match_token(&[TokenType::LeftBrace]) {
             // consume '{'
@@ -223,6 +228,29 @@ impl Parser {
         }
 
         Some(Stmt::If { condition, then_branch: Box::new(then_branch), else_branch })
+    }
+
+    fn while_statement(&mut self) -> Option<Stmt> {
+        // Expect '('
+        if self.consume(TokenType::LeftParen, "Expect '(' after 'while'.").is_none() {
+            return None;
+        }
+
+        let condition = match self.expression() {
+            Some(e) => e,
+            None => return None,
+        };
+
+        if self.consume(TokenType::RightParen, "Expect ')' after condition.").is_none() {
+            return None;
+        }
+
+        let body = match self.statement() {
+            Some(s) => s,
+            None => return None,
+        };
+
+        Some(Stmt::While { condition, body: Box::new(body) })
     }
 
     fn block(&mut self) -> Vec<Stmt> {
