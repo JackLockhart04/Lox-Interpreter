@@ -131,12 +131,66 @@ impl Parser {
 
     // Parse a declaration (top-level): currently only var declarations or statements.
     fn declaration(&mut self) -> Option<Stmt> {
+        if self.match_token(&[TokenType::Fun]) {
+            // consume 'fun'
+            let _ = self.token_source.next_token();
+            return self.function("function");
+        }
         if self.match_token(&[TokenType::Var]) {
             // consume the 'var' keyword
             let _ = self.token_source.next_token();
             return self.var_declaration();
         }
         return self.statement();
+    }
+
+    fn function(&mut self, kind: &str) -> Option<Stmt> {
+        // Expect function name
+        let name = match self.consume(TokenType::Identifier, &format!("Expect {} name.", kind)) {
+            Some(t) => t,
+            None => return None,
+        };
+
+        // Expect '('
+        if self.consume(TokenType::LeftParen, &format!("Expect '(' after {} name.", kind)).is_none() {
+            return None;
+        }
+
+        let mut parameters: Vec<Token> = Vec::new();
+        if !self.match_token(&[TokenType::RightParen]) {
+            loop {
+                if parameters.len() >= 255 {
+                    // report error but don't panic
+                    if let Some(tok) = self.token_source.peek_token() {
+                        self.error(tok.clone(), "Can't have more than 255 parameters.");
+                    }
+                }
+
+                let param = match self.consume(TokenType::Identifier, "Expect parameter name.") {
+                    Some(t) => t,
+                    None => return None,
+                };
+                parameters.push(param);
+
+                if self.match_token(&[TokenType::Comma]) {
+                    let _ = self.token_source.next_token();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if self.consume(TokenType::RightParen, "Expect ')' after parameters.").is_none() {
+            return None;
+        }
+
+        // Expect '{' before function body
+        if self.consume(TokenType::LeftBrace, &format!("Expect '{{' before {} body.", kind)).is_none() {
+            return None;
+        }
+
+        let body = self.block();
+        Some(Stmt::Function { name, params: parameters, body })
     }
 
     fn var_declaration(&mut self) -> Option<Stmt> {

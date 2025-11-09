@@ -309,6 +309,19 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 		Ok(())
 	}
 
+	fn visit_function_stmt(&mut self, name: &Token, params: &Vec<Token>, body: &Vec<Stmt>) -> Result<(), RuntimeError> {
+		// Create a new LoxFunction with current environment as its closure
+		let func = crate::interpret::lox_function::LoxFunction::new(
+			name.clone(),
+			params.clone(),
+			body.clone(),
+			self.environment.clone(),
+		);
+		let rc = Rc::new(func);
+		self.environment.borrow_mut().define(&name.lexeme, Some(Value::Function(rc)));
+		Ok(())
+	}
+
 	fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Box<Stmt>, else_branch: &Option<Box<Stmt>>) -> Result<(), RuntimeError> {
 		let cond_val = self.evaluate(condition)?;
 		if Interpreter::is_truthy(&cond_val) {
