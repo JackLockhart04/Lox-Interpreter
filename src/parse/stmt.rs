@@ -7,6 +7,7 @@ pub enum Stmt {
     Print(Expr),
     Var { name: Token, initializer: Option<Expr> },
     Block(Vec<Stmt>),
+    If { condition: Expr, then_branch: Box<Stmt>, else_branch: Option<Box<Stmt>> },
 }
 
 pub trait Visitor<R> {
@@ -14,6 +15,7 @@ pub trait Visitor<R> {
     fn visit_print_stmt(&mut self, expr: &Expr) -> R;
     fn visit_var_stmt(&mut self, name: &Token, initializer: &Option<Expr>) -> R;
     fn visit_block_stmt(&mut self, statements: &Vec<Stmt>) -> R;
+    fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Box<Stmt>, else_branch: &Option<Box<Stmt>>) -> R;
 }
 
 impl Stmt {
@@ -23,6 +25,7 @@ impl Stmt {
             Stmt::Print(expr) => visitor.visit_print_stmt(expr),
             Stmt::Var { name, initializer } => visitor.visit_var_stmt(name, initializer),
             Stmt::Block(stmts) => visitor.visit_block_stmt(stmts),
+            Stmt::If { condition, then_branch, else_branch } => visitor.visit_if_stmt(condition, then_branch, else_branch),
         }
     }
 }

@@ -134,6 +134,20 @@ var c = "global c";
 	print b; // outer b
 	print c; // global c
 }
+// If statement tests
+print "---- if tests ----";
+
+if (true) print "if-true single";
+if (false) print "if-false single";
+
+if (1 < 2) { print "if-block true"; }
+if (2 < 1) { print "if-block false"; } else print "else for single statement";
+if (2 < 1) { print "if-block false"; } else { print "else for block"; }
+
+var first = true;
+var second = false;
+if (first) if (second) print "both"; else print "dangling else bound to inner";
+
 print a; // global a
 print b; // global b
 print c; // global c

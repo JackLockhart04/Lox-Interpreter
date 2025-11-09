@@ -233,6 +233,16 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 		Ok(())
 	}
 
+	fn visit_if_stmt(&mut self, condition: &Expr, then_branch: &Box<Stmt>, else_branch: &Option<Box<Stmt>>) -> Result<(), RuntimeError> {
+		let cond_val = self.evaluate(condition)?;
+		if Interpreter::is_truthy(&cond_val) {
+			self.execute(&*then_branch)?;
+		} else if let Some(eb) = else_branch {
+			self.execute(&**eb)?;
+		}
+		Ok(())
+	}
+
 	fn visit_block_stmt(&mut self, statements: &Vec<Stmt>) -> Result<(), RuntimeError> {
 		// Create a new environment that encloses the current one and execute the block
 		let new_env = Rc::new(RefCell::new(Environment::new_enclosing(self.environment.clone())));

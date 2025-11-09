@@ -174,6 +174,11 @@ impl Parser {
             let _ = self.token_source.next_token();
             return self.print_statement();
         }
+        if self.match_token(&[TokenType::If]) {
+            // consume 'if'
+            let _ = self.token_source.next_token();
+            return self.if_statement();
+        }
         // Block statement
         if self.match_token(&[TokenType::LeftBrace]) {
             // consume '{'
@@ -182,6 +187,42 @@ impl Parser {
             return Some(Stmt::Block(stmts));
         }
         return self.expression_statement();
+    }
+
+    fn if_statement(&mut self) -> Option<Stmt> {
+        // Expect '('
+        if self.consume(TokenType::LeftParen, "Expect '(' after 'if'.").is_none() {
+            return None;
+        }
+
+        let condition = match self.expression() {
+            Some(e) => e,
+            None => return None,
+        };
+
+        if self.consume(TokenType::RightParen, "Expect ')' after if condition.").is_none() {
+            return None;
+        }
+
+        // then branch
+        let then_branch = match self.statement() {
+            Some(s) => s,
+            None => return None,
+        };
+
+        // optional else
+        let mut else_branch: Option<Box<Stmt>> = None;
+        if self.match_token(&[TokenType::Else]) {
+            // consume 'else'
+            let _ = self.token_source.next_token();
+            if let Some(eb) = self.statement() {
+                else_branch = Some(Box::new(eb));
+            } else {
+                return None;
+            }
+        }
+
+        Some(Stmt::If { condition, then_branch: Box::new(then_branch), else_branch })
     }
 
     fn block(&mut self) -> Vec<Stmt> {

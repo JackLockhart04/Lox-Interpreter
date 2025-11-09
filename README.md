@@ -30,3 +30,7 @@ Use Rusts cargo to build to an executable
 ### Push
 
     Run `git push origin main`
+
+# Limitations
+
+If statements have to wait until next statement to print out since it has to watch for else
