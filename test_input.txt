@@ -54,7 +54,7 @@ print b;
 var assign_test = 1;
 assign_test = 2;
 print assign_test;
-print assign_test = 3;   // prints 2 and assigns 2 into assign_test
+print assign_test = 3;   // prints 3 and assigns 3 into assign_test
 print assign_test;
 
 // Mixed-type concatenation
@@ -87,3 +87,53 @@ var num = num + 1;
 print num;
 
 // Final newline below
+
+// Block scope tests
+print "---- block scope tests ----";
+
+// volume shadowing and assignment to outer variable
+var volume = 11;
+volume = 0;
+{
+	var volume = 3 * 4 * 5;
+	print volume; // should print 60 (inner)
+}
+print volume; // should print 0 (outer)
+
+// assignment to outer scope variable from inside a block
+var vol = 11;
+{
+	vol = 0;
+	print vol; // 0
+}
+print vol; // 0
+
+// local variable that should not be visible outside the block
+var global = "outside";
+{
+	var local = "inside";
+	print global + local; // outsideinside
+}
+print global; // outside
+print local; // runtime error: undefined
+
+// Nested shadowing example
+var a = "global a";
+var b = "global b";
+var c = "global c";
+{
+	var a = "outer a";
+	var b = "outer b";
+	{
+		var a = "inner a";
+		print a; // inner a
+		print b; // outer b
+		print c; // global c
+	}
+	print a; // outer a
+	print b; // outer b
+	print c; // global c
+}
+print a; // global a
+print b; // global b
+print c; // global c

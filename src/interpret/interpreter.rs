@@ -3,11 +3,13 @@ use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
 use crate::interpret::environment::Environment;
 use crate::util::logger::{global_logger, LogLevel};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 /// The Interpreter evaluates expressions and returns runtime values.
 /// It keeps a simple global environment (flat scope) for variable declarations.
 pub struct Interpreter {
-	environment: Environment,
+	environment: Rc<RefCell<Environment>>,
 }
 
 #[derive(Debug, Clone)]
@@ -24,7 +26,7 @@ impl RuntimeError {
 
 impl Interpreter {
 	pub fn new() -> Self {
-		Interpreter { environment: Environment::new() }
+		Interpreter { environment: Rc::new(RefCell::new(Environment::new())) }
 	}
 }
 
@@ -165,7 +167,7 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 		// Evaluate the right-hand side
 		let value = self.evaluate(&expr.value)?;
 		// Try to assign into the environment. If the variable is undefined, return a runtime error.
-		match self.environment.assign(&expr.name, value.clone()) {
+		match self.environment.borrow_mut().assign(&expr.name, value.clone()) {
 			Ok(()) => Ok(value),
 			Err(msg) => Err(RuntimeError::new(expr.name.clone(), &msg)),
 		}
@@ -204,7 +206,7 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 	}
 
 		fn visit_variable_expr(&mut self, name: &Token) -> Result<Option<LiteralValue>, RuntimeError> {
-			match self.environment.get(name) {
+			match self.environment.borrow().get(name) {
 				Ok(val) => Ok(val),
 				Err(msg) => Err(RuntimeError::new(name.clone(), &msg)),
 			}
@@ -227,13 +229,33 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 			Some(expr) => self.evaluate(expr)?,
 			None => None,
 		};
-		self.environment.define(&name.lexeme, value);
+		self.environment.borrow_mut().define(&name.lexeme, value);
 		Ok(())
 	}
+
+	fn visit_block_stmt(&mut self, statements: &Vec<Stmt>) -> Result<(), RuntimeError> {
+		// Create a new environment that encloses the current one and execute the block
+		let new_env = Rc::new(RefCell::new(Environment::new_enclosing(self.environment.clone())));
+		self.execute_block(statements, new_env)
+	}
 }
+
 impl Interpreter {
 	fn evaluate(&mut self, expr: &Expr) -> Result<Option<LiteralValue>, RuntimeError> {
 		expr.accept(self)
+	}
+
+	fn execute_block(&mut self, statements: &Vec<Stmt>, env: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+		let previous = self.environment.clone();
+		self.environment = env;
+		let result = (|| -> Result<(), RuntimeError> {
+			for stmt in statements {
+				self.execute(stmt)?;
+			}
+			Ok(())
+		})();
+		self.environment = previous;
+		result
 	}
 
 	fn is_truthy(val: &Option<LiteralValue>) -> bool {

@@ -174,7 +174,34 @@ impl Parser {
             let _ = self.token_source.next_token();
             return self.print_statement();
         }
+        // Block statement
+        if self.match_token(&[TokenType::LeftBrace]) {
+            // consume '{'
+            let _ = self.token_source.next_token();
+            let stmts = self.block();
+            return Some(Stmt::Block(stmts));
+        }
         return self.expression_statement();
+    }
+
+    fn block(&mut self) -> Vec<Stmt> {
+        let mut statements: Vec<Stmt> = Vec::new();
+
+        while let Some(tok) = self.token_source.peek_token() {
+            if tok.get_type() == TokenType::RightBrace || tok.get_type() == TokenType::Eof {
+                break;
+            }
+            if let Some(decl) = self.declaration() {
+                statements.push(decl);
+            } else {
+                // If a declaration failed, synchronize and continue parsing
+                self.synchronize();
+            }
+        }
+
+        // Consume the closing '}'
+        let _ = self.consume(TokenType::RightBrace, "Expect '}' after block.");
+        statements
     }
 
     fn print_statement(&mut self) -> Option<Stmt> {
