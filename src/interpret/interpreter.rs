@@ -312,6 +312,19 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 		Ok(())
 	}
 
+	fn visit_return_stmt(&mut self, _keyword: &Token, value: &Option<Expr>) -> Result<(), RuntimeError> {
+		// Evaluate return value if present, otherwise treat as nil
+		let ret_val = match value {
+			Some(expr) => self.evaluate(expr)?,
+			None => None,
+		};
+
+		// Store the return value in thread-local storage and panic with a simple marker
+		crate::interpret::return_value::set_return(ret_val);
+		const RETURN_MARKER: &str = "__LOX_RETURN__";
+		std::panic::panic_any(RETURN_MARKER);
+	}
+
 	fn visit_function_stmt(&mut self, name: &Token, params: &Vec<Token>, body: &Vec<Stmt>) -> Result<(), RuntimeError> {
 		// Wrap the parsed function declaration into a runtime LoxFunction object
 		let decl = Stmt::Function { name: name.clone(), params: params.clone(), body: body.clone() };

@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::fmt;
-use crate::token::token::Token;
 use crate::interpret::callable::LoxCallable;
 use crate::parse::stmt::Stmt;
 

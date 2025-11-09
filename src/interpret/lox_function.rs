@@ -34,8 +34,37 @@ impl LoxFunction {
                 env.borrow_mut().define(&param.lexeme, Some(arg));
             }
 
-            // Execute the function body in the new environment
-            interpreter.execute_block(body, env)?;
+            // Execute the function body in the new environment, catching return panics
+            use std::panic::{catch_unwind, resume_unwind, take_hook, set_hook};
+
+            // Temporarily install a no-op panic hook so the unwind doesn't print to stderr
+            let prev_hook = take_hook();
+            set_hook(Box::new(|_info| {}));
+
+            let res = catch_unwind(std::panic::AssertUnwindSafe(|| {
+                interpreter.execute_block(body, env)
+            }));
+
+            // Restore previous panic hook
+            set_hook(prev_hook);
+
+            match res {
+                Ok(inner_res) => {
+                    // Normal completion (no return)
+                    inner_res?;
+                }
+                Err(payload) => {
+                    // If this was our return marker, extract the stored return value
+                    if let Some(s) = payload.downcast_ref::<&str>() {
+                        if *s == "__LOX_RETURN__" {
+                            let rv = crate::interpret::return_value::take_return();
+                            return Ok(rv);
+                        }
+                    }
+                    // Otherwise, resume unwinding
+                    resume_unwind(payload);
+                }
+            }
         }
 
         // No return implementation yet -> functions return nil

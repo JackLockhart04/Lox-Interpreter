@@ -193,6 +193,23 @@ impl Parser {
         Some(Stmt::Function { name, params: parameters, body })
     }
 
+    fn return_statement(&mut self, keyword: crate::token::token::Token) -> Option<Stmt> {
+        let mut value: Option<Expr> = None;
+        if !self.match_token(&[TokenType::Semicolon]) {
+            if let Some(expr) = self.expression() {
+                value = Some(expr);
+            } else {
+                return None;
+            }
+        }
+
+        if self.consume(TokenType::Semicolon, "Expect ';' after return value.").is_none() {
+            return None;
+        }
+
+        Some(Stmt::Return { keyword, value })
+    }
+
     fn var_declaration(&mut self) -> Option<Stmt> {
         // Expect an identifier
         let name = match self.consume(TokenType::Identifier, "Expect variable name.") {
@@ -227,6 +244,11 @@ impl Parser {
             // print_statement() can parse the following expression.
             let _ = self.token_source.next_token();
             return self.print_statement();
+        }
+        if self.match_token(&[TokenType::Return]) {
+            // consume 'return'
+            let kw = self.token_source.next_token().unwrap();
+            return self.return_statement(kw);
         }
         if self.match_token(&[TokenType::For]) {
             // consume 'for'
