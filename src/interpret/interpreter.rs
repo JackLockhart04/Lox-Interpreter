@@ -10,7 +10,7 @@ use crate::interpret::value::Value;
 /// The Interpreter evaluates expressions and returns runtime values.
 /// It keeps a simple global environment (flat scope) for variable declarations.
 pub struct Interpreter {
-	globals: Rc<RefCell<Environment>>,
+	pub(crate) globals: Rc<RefCell<Environment>>,
 	environment: Rc<RefCell<Environment>>,
 }
 
@@ -53,7 +53,10 @@ impl Interpreter {
 			}
 			Some(Value::Str(s)) => s.clone(),
 			Some(Value::Bool(b)) => b.to_string(),
-			Some(Value::Function(f)) => format!("<fn {}>", f.name.lexeme),
+			Some(Value::Function(f)) => match &f.declaration {
+				Stmt::Function { name, .. } => format!("<fn {}>", name.lexeme),
+				_ => "<fn>".to_string(),
+			},
 			Some(Value::Native(n)) => n.to_string(),
 		}
 	}
@@ -310,13 +313,9 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 	}
 
 	fn visit_function_stmt(&mut self, name: &Token, params: &Vec<Token>, body: &Vec<Stmt>) -> Result<(), RuntimeError> {
-		// Create a new LoxFunction with current environment as its closure
-		let func = crate::interpret::lox_function::LoxFunction::new(
-			name.clone(),
-			params.clone(),
-			body.clone(),
-			self.environment.clone(),
-		);
+		// Wrap the parsed function declaration into a runtime LoxFunction object
+		let decl = Stmt::Function { name: name.clone(), params: params.clone(), body: body.clone() };
+		let func = crate::interpret::lox_function::LoxFunction::new(decl);
 		let rc = Rc::new(func);
 		self.environment.borrow_mut().define(&name.lexeme, Some(Value::Function(rc)));
 		Ok(())

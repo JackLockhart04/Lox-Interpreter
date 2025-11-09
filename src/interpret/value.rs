@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::fmt;
 use crate::token::token::Token;
 use crate::interpret::callable::LoxCallable;
+use crate::parse::stmt::Stmt;
 
 #[derive(Clone)]
 pub enum Value {
@@ -22,7 +23,10 @@ impl fmt::Debug for Value {
             Value::Number(n) => write!(f, "Number({})", n),
             Value::Str(s) => write!(f, "Str({})", s),
             Value::Bool(b) => write!(f, "Bool({})", b),
-            Value::Function(func) => write!(f, "Function({})", func.name.lexeme),
+            Value::Function(func) => match &func.declaration {
+                Stmt::Function { name, .. } => write!(f, "Function({})", name.lexeme),
+                _ => write!(f, "Function(<fn>)"),
+            },
             Value::Native(_) => write!(f, "Native(<native fn>)"),
         }
     }
