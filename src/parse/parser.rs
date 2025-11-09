@@ -174,6 +174,11 @@ impl Parser {
             let _ = self.token_source.next_token();
             return self.print_statement();
         }
+        if self.match_token(&[TokenType::For]) {
+            // consume 'for'
+            let _ = self.token_source.next_token();
+            return self.for_statement();
+        }
         if self.match_token(&[TokenType::If]) {
             // consume 'if'
             let _ = self.token_source.next_token();
@@ -251,6 +256,76 @@ impl Parser {
         };
 
         Some(Stmt::While { condition, body: Box::new(body) })
+    }
+
+    fn for_statement(&mut self) -> Option<Stmt> {
+        // Expect '('
+        if self.consume(TokenType::LeftParen, "Expect '(' after 'for'.").is_none() {
+            return None;
+        }
+
+        // Initializer: can be ';' (none), a var declaration, or an expression statement
+        let initializer: Option<Stmt>;
+        if self.match_token(&[TokenType::Semicolon]) {
+            // consume ';'
+            let _ = self.token_source.next_token();
+            initializer = None;
+        } else if self.match_token(&[TokenType::Var]) {
+            // consume 'var'
+            let _ = self.token_source.next_token();
+            initializer = self.var_declaration();
+        } else {
+            initializer = self.expression_statement();
+        }
+
+        // Condition
+        let mut condition: Option<Expr> = None;
+        if !self.match_token(&[TokenType::Semicolon]) {
+            condition = self.expression();
+            if condition.is_none() {
+                return None;
+            }
+        }
+        if self.consume(TokenType::Semicolon, "Expect ';' after loop condition.").is_none() {
+            return None;
+        }
+
+        // Increment
+        let mut increment: Option<Expr> = None;
+        if !self.match_token(&[TokenType::RightParen]) {
+            increment = self.expression();
+            if increment.is_none() {
+                return None;
+            }
+        }
+        if self.consume(TokenType::RightParen, "Expect ')' after for clauses.").is_none() {
+            return None;
+        }
+
+        // Body
+        let mut body = match self.statement() {
+            Some(s) => s,
+            None => return None,
+        };
+
+        // If there's an increment, execute it after the body in each loop.
+        if let Some(inc) = increment {
+            body = Stmt::Block(vec![body, Stmt::Expression(inc)]);
+        }
+
+        // Condition: if omitted, treat as 'true'
+        let cond_expr = match condition {
+            Some(c) => c,
+            None => Expr::Literal(crate::parse::expr::LiteralExpr { value: Some(crate::parse::expr::LiteralValue::Bool(true)) }),
+        };
+        body = Stmt::While { condition: cond_expr, body: Box::new(body) };
+
+        // If initializer present, run it once before the loop
+        if let Some(init) = initializer {
+            body = Stmt::Block(vec![init, body]);
+        }
+
+        Some(body)
     }
 
     fn block(&mut self) -> Vec<Stmt> {

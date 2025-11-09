@@ -193,3 +193,20 @@ while (k <= 5) {
 	k = k + 1;
 }
 print sum; // should print 15
+// For loop tests (C-style)
+print "---- for tests ----";
+for (var i = 0; i < 5; i = i + 1) print i;
+
+// For loop with block body
+for (var j = 0; j < 3; j = j + 1) {
+		print "j:" + j;
+}
+
+// Fibonacci example from the book
+var a = 0;
+var temp = 0;
+for (var b = 1; a < 10000; b = temp + b) {
+	print a;
+	temp = a;
+	a = b;
+}
