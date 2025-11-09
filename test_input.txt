@@ -50,6 +50,13 @@ var a = 1;
 var b = a + 2;
 print b;
 
+// Assignment as expression (should return the assigned value)
+var assign_test = 1;
+assign_test = 2;
+print assign_test;
+print assign_test = 3;   // prints 2 and assigns 2 into assign_test
+print assign_test;
+
 // Mixed-type concatenation
 print "sum: " + (1 + 2);
 

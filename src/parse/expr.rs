@@ -38,6 +38,12 @@ pub struct UnaryExpr {
     pub right: Box<Expr>,
 }
 
+#[derive(Debug, Clone)]
+pub struct AssignExpr {
+    pub name: Token,
+    pub value: Box<Expr>,
+}
+
 // --- BASE EXPR ENUM ---
 
 // The main Expr enum, which acts as the root of the expression hierarchy.
@@ -48,6 +54,7 @@ pub enum Expr {
     Literal(LiteralExpr),
     Unary(UnaryExpr),
     Variable(Token),
+    Assign(AssignExpr),
     // You'll add more variants here as you expand Lox (e.g., Variable, Call, Assign)
 }
 
@@ -62,6 +69,7 @@ pub trait Visitor<R> {
     fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> R;
     fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> R;
     fn visit_variable_expr(&mut self, name: &Token) -> R;
+    fn visit_assign_expr(&mut self, expr: &AssignExpr) -> R;
 }
 
 // --- ACCEPT IMPLEMENTATION ---
@@ -77,6 +85,7 @@ impl Expr {
             Expr::Literal(expr) => visitor.visit_literal_expr(expr),
             Expr::Unary(expr) => visitor.visit_unary_expr(expr),
             Expr::Variable(name) => visitor.visit_variable_expr(name),
+            Expr::Assign(assign) => visitor.visit_assign_expr(assign),
         }
     }
 }

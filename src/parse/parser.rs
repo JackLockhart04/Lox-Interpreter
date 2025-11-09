@@ -1,6 +1,6 @@
 use crate::input::scanner::Scanner;
 use crate::token::token::{Token, TokenType};
-use crate::parse::expr::{Expr, BinaryExpr, UnaryExpr, GroupingExpr, LiteralExpr, LiteralValue};
+use crate::parse::expr::{Expr, BinaryExpr, UnaryExpr, GroupingExpr, LiteralExpr, LiteralValue, AssignExpr};
 use crate::parse::stmt::Stmt;
 use crate::util::logger::{global_logger, LogLevel};
 
@@ -210,7 +210,44 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Option<Expr> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Option<Expr> {
+        // Parse the left-hand side as an equality (higher precedence)
+        let expr = self.equality();
+        if expr.is_none() {
+            return None;
+        }
+
+        // If we see '=', this is an assignment expression (right-associative)
+        if self.match_token(&[TokenType::Equal]) {
+            // consume '='
+            let equals = self.token_source.next_token().unwrap();
+            // Parse the right-hand side as another assignment (right-associative)
+            let value = self.assignment();
+
+            // Ensure the left side is a valid assignment target (currently only simple variables)
+            let left_expr = expr.unwrap();
+            if let Some(val_expr) = value {
+                match left_expr {
+                    Expr::Variable(name) => {
+                        return Some(Expr::Assign(AssignExpr { name, value: Box::new(val_expr) }));
+                    }
+                    _ => {
+                        self.error(equals, "Invalid assignment target.");
+                        return None;
+                    }
+                }
+            } else {
+                // right-hand side failed to parse
+                self.error(equals, "Expect expression after '='.");
+                return None;
+            }
+        }
+
+        // No assignment; return the previously parsed expression
+        expr
     }
 
     fn equality(&mut self) -> Option<Expr> {

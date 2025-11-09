@@ -1,4 +1,4 @@
-use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
+use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LiteralValue};
 use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
 use crate::interpret::environment::Environment;
@@ -157,6 +157,17 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 				logger.log(LogLevel::Error, "Unsupported binary operator.");
 				return Ok(None);
 			}
+		}
+	}
+
+
+	fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+		// Evaluate the right-hand side
+		let value = self.evaluate(&expr.value)?;
+		// Try to assign into the environment. If the variable is undefined, return a runtime error.
+		match self.environment.assign(&expr.name, value.clone()) {
+			Ok(()) => Ok(value),
+			Err(msg) => Err(RuntimeError::new(expr.name.clone(), &msg)),
 		}
 	}
 

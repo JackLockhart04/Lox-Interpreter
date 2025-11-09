@@ -28,4 +28,14 @@ impl Environment {
             Err(format!("Undefined variable '{}'.", name.lexeme))
         }
     }
+
+    /// Assign to an existing variable. Returns Err if the variable is not defined.
+    pub fn assign(&mut self, name: &Token, value: Option<LiteralValue>) -> Result<(), String> {
+        if self.values.contains_key(&name.lexeme) {
+            self.values.insert(name.lexeme.clone(), value);
+            Ok(())
+        } else {
+            Err(format!("Undefined variable '{}'.", name.lexeme))
+        }
+    }
 }

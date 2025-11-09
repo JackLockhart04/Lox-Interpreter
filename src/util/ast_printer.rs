@@ -1,4 +1,4 @@
-use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, LiteralValue};
+use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LiteralValue};
 
 /// The AstPrinter implements the Visitor trait to produce a string representation of the AST.
 pub struct AstPrinter;
@@ -52,5 +52,18 @@ impl Visitor<String> for AstPrinter {
 
     fn visit_variable_expr(&mut self, name: &crate::token::token::Token) -> String {
         name.lexeme.clone()
+    }
+
+    fn visit_assign_expr(&mut self, expr: &AssignExpr) -> String {
+        // Represent assignment as (= name value)
+        let mut output = String::new();
+        output.push_str("(");
+        output.push_str("=");
+        output.push_str(" ");
+        output.push_str(&expr.name.lexeme);
+        output.push_str(" ");
+        output.push_str(&expr.value.accept(self));
+        output.push_str(")");
+        output
     }
 }
