@@ -5,6 +5,7 @@ use crate::interpret::value::Value;
 use crate::interpret::interpreter::RuntimeError;
 use std::rc::Rc;
 use std::cell::RefCell;
+use crate::interpret::callable::LoxCallable;
 
 #[derive(Debug)]
 pub struct LoxFunction {
@@ -37,4 +38,14 @@ impl LoxFunction {
         // No return implementation yet -> functions return nil
         Ok(Some(Value::Nil))
     }
+}
+
+impl LoxCallable for LoxFunction {
+    fn arity(&self) -> usize { self.arity() }
+
+    fn call(&self, interpreter: &mut crate::interpret::interpreter::Interpreter, arguments: &Vec<Value>) -> Result<Option<Value>, RuntimeError> {
+        self.call(interpreter, arguments)
+    }
+
+    fn to_string(&self) -> String { format!("<fn {}>", self.name.lexeme) }
 }

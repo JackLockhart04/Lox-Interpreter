@@ -10,6 +10,7 @@ use crate::interpret::value::Value;
 /// The Interpreter evaluates expressions and returns runtime values.
 /// It keeps a simple global environment (flat scope) for variable declarations.
 pub struct Interpreter {
+	globals: Rc<RefCell<Environment>>,
 	environment: Rc<RefCell<Environment>>,
 }
 
@@ -27,7 +28,13 @@ impl RuntimeError {
 
 impl Interpreter {
 	pub fn new() -> Self {
-		Interpreter { environment: Rc::new(RefCell::new(Environment::new())) }
+		let globals = Rc::new(RefCell::new(Environment::new()));
+		// Put native functions into globals
+		// Register clock native function
+		let clock = crate::interpret::callable::NativeClock;
+		globals.borrow_mut().define("clock", Some(crate::interpret::value::Value::Native(std::rc::Rc::new(clock))));
+
+		Interpreter { globals: globals.clone(), environment: globals }
 	}
 }
 
@@ -47,6 +54,7 @@ impl Interpreter {
 			Some(Value::Str(s)) => s.clone(),
 			Some(Value::Bool(b)) => b.to_string(),
 			Some(Value::Function(f)) => format!("<fn {}>", f.name.lexeme),
+			Some(Value::Native(n)) => n.to_string(),
 		}
 	}
 
@@ -256,7 +264,7 @@ impl Visitor<Result<Option<Value>, RuntimeError>> for Interpreter {
 				arguments.push(val);
 			}
 
-			// Ensure callee is callable (a function)
+			// Ensure callee is callable (user-defined or native)
 			match callee_val {
 				Some(Value::Function(func_rc)) => {
 					let func = func_rc.as_ref();
@@ -266,6 +274,13 @@ impl Visitor<Result<Option<Value>, RuntimeError>> for Interpreter {
 					}
 					// Call the function
 					return func.call(self, &arguments);
+				}
+				Some(Value::Native(native_rc)) => {
+					// arity check
+					if arguments.len() != native_rc.arity() {
+						return Err(RuntimeError::new(expr.paren.clone(), &format!("Expected {} arguments but got {}.", native_rc.arity(), arguments.len())));
+					}
+					return native_rc.call(self, &arguments);
 				}
 				_ => {
 					return Err(RuntimeError::new(expr.paren.clone(), "Can only call functions and classes."));

@@ -1,12 +1,29 @@
 use std::rc::Rc;
+use std::fmt;
 use crate::token::token::Token;
+use crate::interpret::callable::LoxCallable;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Value {
     Nil,
     Number(f64),
     Str(String),
     Bool(bool),
-    // Function will be stored as a reference counted pointer to a LoxFunction
+    // User-defined function
     Function(Rc<crate::interpret::lox_function::LoxFunction>),
+    // Native or other callable implemented in Rust
+    Native(Rc<dyn LoxCallable>),
+}
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Nil => write!(f, "Nil"),
+            Value::Number(n) => write!(f, "Number({})", n),
+            Value::Str(s) => write!(f, "Str({})", s),
+            Value::Bool(b) => write!(f, "Bool({})", b),
+            Value::Function(func) => write!(f, "Function({})", func.name.lexeme),
+            Value::Native(_) => write!(f, "Native(<native fn>)"),
+        }
+    }
 }
