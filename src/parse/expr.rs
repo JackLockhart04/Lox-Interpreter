@@ -51,6 +51,13 @@ pub struct LogicalExpr {
     pub right: Box<Expr>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CallExpr {
+    pub callee: Box<Expr>,
+    pub paren: Token,
+    pub arguments: Vec<Expr>,
+}
+
 // --- BASE EXPR ENUM ---
 
 // The main Expr enum, which acts as the root of the expression hierarchy.
@@ -63,6 +70,7 @@ pub enum Expr {
     Variable(Token),
     Assign(AssignExpr),
     Logical(LogicalExpr),
+    Call(CallExpr),
     // You'll add more variants here as you expand Lox (e.g., Variable, Call, Assign)
 }
 
@@ -79,6 +87,7 @@ pub trait Visitor<R> {
     fn visit_variable_expr(&mut self, name: &Token) -> R;
     fn visit_assign_expr(&mut self, expr: &AssignExpr) -> R;
     fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> R;
+    fn visit_call_expr(&mut self, expr: &CallExpr) -> R;
 }
 
 // --- ACCEPT IMPLEMENTATION ---
@@ -96,6 +105,7 @@ impl Expr {
             Expr::Variable(name) => visitor.visit_variable_expr(name),
             Expr::Assign(assign) => visitor.visit_assign_expr(assign),
             Expr::Logical(logical) => visitor.visit_logical_expr(logical),
+            Expr::Call(call) => visitor.visit_call_expr(call),
         }
     }
 }

@@ -1,10 +1,11 @@
-use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LogicalExpr, LiteralValue};
+use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LogicalExpr};
 use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
 use crate::interpret::environment::Environment;
 use crate::util::logger::{global_logger, LogLevel};
 use std::rc::Rc;
 use std::cell::RefCell;
+use crate::interpret::value::Value;
 
 /// The Interpreter evaluates expressions and returns runtime values.
 /// It keeps a simple global environment (flat scope) for variable declarations.
@@ -32,18 +33,20 @@ impl Interpreter {
 
 
 impl Interpreter {
-	fn stringify(&self, object: &Option<LiteralValue>) -> String {
+	fn stringify(&self, object: &Option<Value>) -> String {
 		match object {
 			None => "nil".to_string(),
-			Some(LiteralValue::Number(n)) => {
+			Some(Value::Nil) => "nil".to_string(),
+			Some(Value::Number(n)) => {
 				let mut text = format!("{}", n);
 				if text.ends_with(".0") {
 					text.truncate(text.len() - 2);
 				}
 				text
 			}
-			Some(LiteralValue::Str(s)) => s.clone(),
-			Some(LiteralValue::Bool(b)) => b.to_string(),
+			Some(Value::Str(s)) => s.clone(),
+			Some(Value::Bool(b)) => b.to_string(),
+			Some(Value::Function(f)) => format!("<fn {}>", f.name.lexeme),
 		}
 	}
 
@@ -73,8 +76,8 @@ impl Interpreter {
 	}
 }
 
-impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
-	fn visit_binary_expr(&mut self, _expr: &BinaryExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+impl Visitor<Result<Option<Value>, RuntimeError>> for Interpreter {
+	fn visit_binary_expr(&mut self, _expr: &BinaryExpr) -> Result<Option<Value>, RuntimeError> {
 		// Evaluate operands
 		let left_val = self.evaluate(&_expr.left)?;
 		let right_val = self.evaluate(&_expr.right)?;
@@ -82,9 +85,9 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 		let logger = global_logger();
 
 		// Helper to extract number
-		let as_number = |v: &Option<LiteralValue>| -> Option<f64> {
+		let as_number = |v: &Option<Value>| -> Option<f64> {
 			match v {
-				Some(LiteralValue::Number(n)) => Some(*n),
+				Some(Value::Number(n)) => Some(*n),
 				_ => None,
 			}
 		};
@@ -94,31 +97,31 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Number(a - b)));
+				return Ok(Some(Value::Number(a - b)));
 			}
 			TokenType::Slash => {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Number(a / b)));
+				return Ok(Some(Value::Number(a / b)));
 			}
 			TokenType::Star => {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Number(a * b)));
+				return Ok(Some(Value::Number(a * b)));
 			}
 			TokenType::Plus => {
 				// Number + Number
 				if let (Some(a), Some(b)) = (as_number(&left_val), as_number(&right_val)) {
-					return Ok(Some(LiteralValue::Number(a + b)));
+					return Ok(Some(Value::Number(a + b)));
 				}
 
 				// If either operand is a string, convert both to strings and concatenate.
-				if matches!(left_val, Some(LiteralValue::Str(_))) || matches!(right_val, Some(LiteralValue::Str(_))) {
+				if matches!(left_val, Some(Value::Str(_))) || matches!(right_val, Some(Value::Str(_))) {
 					let left_s = self.stringify(&left_val);
 					let right_s = self.stringify(&right_val);
-					return Ok(Some(LiteralValue::Str(format!("{}{}", left_s, right_s))));
+					return Ok(Some(Value::Str(format!("{}{}", left_s, right_s))));
 				}
 
 				// Otherwise it's a type error
@@ -128,31 +131,31 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Bool(a > b)));
+				return Ok(Some(Value::Bool(a > b)));
 			}
 			TokenType::GreaterEqual => {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Bool(a >= b)));
+				return Ok(Some(Value::Bool(a >= b)));
 			}
 			TokenType::Less => {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Bool(a < b)));
+				return Ok(Some(Value::Bool(a < b)));
 			}
 			TokenType::LessEqual => {
 				self.check_number_operands(&_expr.operator, &left_val, &right_val)?;
 				let a = as_number(&left_val).unwrap();
 				let b = as_number(&right_val).unwrap();
-				return Ok(Some(LiteralValue::Bool(a <= b)));
+				return Ok(Some(Value::Bool(a <= b)));
 			}
 			TokenType::BangEqual => {
-				return Ok(Some(LiteralValue::Bool(!Interpreter::is_equal(&left_val, &right_val))));
+				return Ok(Some(Value::Bool(!Interpreter::is_equal(&left_val, &right_val))));
 			}
 			TokenType::EqualEqual => {
-				return Ok(Some(LiteralValue::Bool(Interpreter::is_equal(&left_val, &right_val))));
+				return Ok(Some(Value::Bool(Interpreter::is_equal(&left_val, &right_val))));
 			}
 			_ => {
 				// Unsupported operator
@@ -163,7 +166,7 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 	}
 
 
-	fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+	fn visit_assign_expr(&mut self, expr: &AssignExpr) -> Result<Option<Value>, RuntimeError> {
 		// Evaluate the right-hand side
 		let value = self.evaluate(&expr.value)?;
 		// Try to assign into the environment. If the variable is undefined, return a runtime error.
@@ -173,7 +176,7 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 		}
 	}
 
-	fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+	fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> Result<Option<Value>, RuntimeError> {
 		let left = self.evaluate(&expr.left)?;
 		match expr.operator.get_type() {
 			TokenType::Or => {
@@ -193,29 +196,34 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 		Ok(right)
 	}
 
-	fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+	fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Result<Option<Value>, RuntimeError> {
 		// Evaluate the inner expression
 		self.evaluate(&expr.expression)
 	}
 
-	fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Result<Option<LiteralValue>, RuntimeError> {
-		// Return the literal's runtime value directly, per the spec.
-		Ok(expr.value.clone())
+	fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> Result<Option<Value>, RuntimeError> {
+		// Convert AST literal into runtime Value
+		match &expr.value {
+			None => Ok(Some(Value::Nil)),
+			Some(crate::parse::expr::LiteralValue::Number(n)) => Ok(Some(Value::Number(*n))),
+			Some(crate::parse::expr::LiteralValue::Str(s)) => Ok(Some(Value::Str(s.clone()))),
+			Some(crate::parse::expr::LiteralValue::Bool(b)) => Ok(Some(Value::Bool(*b))),
+		}
 	}
 
-	fn visit_unary_expr(&mut self, _expr: &UnaryExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+	fn visit_unary_expr(&mut self, _expr: &UnaryExpr) -> Result<Option<Value>, RuntimeError> {
 		let right = self.evaluate(&_expr.right)?;
 		match _expr.operator.get_type() {
 			TokenType::Minus => {
 				self.check_number_operand(&_expr.operator, &right)?;
-				if let Some(LiteralValue::Number(n)) = right {
-					return Ok(Some(LiteralValue::Number(-n)));
+				if let Some(Value::Number(n)) = right {
+					return Ok(Some(Value::Number(-n)));
 				}
 				// Should never reach here because check_number_operand returns Err otherwise
 				return Ok(None);
 			}
 			TokenType::Bang => {
-				return Ok(Some(LiteralValue::Bool(!Interpreter::is_truthy(&right))));
+				return Ok(Some(Value::Bool(!Interpreter::is_truthy(&right))));
 			}
 			_ => {
 				let logger = global_logger();
@@ -225,10 +233,43 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 		}
 	}
 
-		fn visit_variable_expr(&mut self, name: &Token) -> Result<Option<LiteralValue>, RuntimeError> {
+		fn visit_variable_expr(&mut self, name: &Token) -> Result<Option<Value>, RuntimeError> {
 			match self.environment.borrow().get(name) {
 				Ok(val) => Ok(val),
 				Err(msg) => Err(RuntimeError::new(name.clone(), &msg)),
+			}
+		}
+
+		fn visit_call_expr(&mut self, expr: &crate::parse::expr::CallExpr) -> Result<Option<Value>, RuntimeError> {
+			// Evaluate callee
+			let callee_val = self.evaluate(&expr.callee)?;
+
+			// Evaluate arguments
+			let mut arguments: Vec<Value> = Vec::new();
+			for arg_expr in &expr.arguments {
+				let v = self.evaluate(arg_expr)?;
+				// convert Option<Value> to Value, treating None as Nil
+				let val = match v {
+					Some(vv) => vv,
+					None => Value::Nil,
+				};
+				arguments.push(val);
+			}
+
+			// Ensure callee is callable (a function)
+			match callee_val {
+				Some(Value::Function(func_rc)) => {
+					let func = func_rc.as_ref();
+					// arity check
+					if arguments.len() != func.arity() {
+						return Err(RuntimeError::new(expr.paren.clone(), &format!("Expected {} arguments but got {}.", func.arity(), arguments.len())));
+					}
+					// Call the function
+					return func.call(self, &arguments);
+				}
+				_ => {
+					return Err(RuntimeError::new(expr.paren.clone(), "Can only call functions and classes."));
+				}
 			}
 		}
 }
@@ -282,11 +323,11 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
 }
 
 impl Interpreter {
-	fn evaluate(&mut self, expr: &Expr) -> Result<Option<LiteralValue>, RuntimeError> {
+	fn evaluate(&mut self, expr: &Expr) -> Result<Option<Value>, RuntimeError> {
 		expr.accept(self)
 	}
 
-	fn execute_block(&mut self, statements: &Vec<Stmt>, env: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+	pub(crate) fn execute_block(&mut self, statements: &Vec<Stmt>, env: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
 		let previous = self.environment.clone();
 		self.environment = env;
 		let result = (|| -> Result<(), RuntimeError> {
@@ -299,35 +340,38 @@ impl Interpreter {
 		result
 	}
 
-	fn is_truthy(val: &Option<LiteralValue>) -> bool {
+	fn is_truthy(val: &Option<Value>) -> bool {
 		match val {
 			None => false,
-			Some(LiteralValue::Bool(b)) => *b,
+			Some(Value::Bool(b)) => *b,
+			Some(Value::Nil) => false,
 			_ => true,
 		}
 	}
 
-	fn is_equal(a: &Option<LiteralValue>, b: &Option<LiteralValue>) -> bool {
-		if a.is_none() && b.is_none() {
-			return true;
+	fn is_equal(a: &Option<Value>, b: &Option<Value>) -> bool {
+		match (a, b) {
+			(None, None) => true,
+			(None, Some(_)) | (Some(_), None) => false,
+			(Some(Value::Nil), Some(Value::Nil)) => true,
+			(Some(Value::Number(x)), Some(Value::Number(y))) => x == y,
+			(Some(Value::Str(x)), Some(Value::Str(y))) => x == y,
+			(Some(Value::Bool(x)), Some(Value::Bool(y))) => x == y,
+			(Some(Value::Function(f1)), Some(Value::Function(f2))) => std::rc::Rc::ptr_eq(f1, f2),
+			_ => false,
 		}
-		if a.is_none() || b.is_none() {
-			return false;
-		}
-		// Both Some -> compare
-		return a == b;
 	}
 
-	fn check_number_operand(&self, operator: &Token, operand: &Option<LiteralValue>) -> Result<(), RuntimeError> {
+	fn check_number_operand(&self, operator: &Token, operand: &Option<Value>) -> Result<(), RuntimeError> {
 		match operand {
-			Some(LiteralValue::Number(_)) => Ok(()),
+			Some(Value::Number(_)) => Ok(()),
 			_ => Err(RuntimeError::new(operator.clone(), "Operand must be a number.")),
 		}
 	}
 
-	fn check_number_operands(&self, operator: &Token, left: &Option<LiteralValue>, right: &Option<LiteralValue>) -> Result<(), RuntimeError> {
+	fn check_number_operands(&self, operator: &Token, left: &Option<Value>, right: &Option<Value>) -> Result<(), RuntimeError> {
 		match (left, right) {
-			(Some(LiteralValue::Number(_)), Some(LiteralValue::Number(_))) => Ok(()),
+			(Some(Value::Number(_)), Some(Value::Number(_))) => Ok(()),
 			_ => Err(RuntimeError::new(operator.clone(), "Operands must be numbers.")),
 		}
 	}

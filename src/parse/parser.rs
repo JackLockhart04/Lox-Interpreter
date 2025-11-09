@@ -605,7 +605,61 @@ impl Parser {
             }
         }
 
-        return self.primary();
+        // Calls have higher precedence than unary, so parse call expressions here.
+        return self.call();
+    }
+
+    // Parse call expressions: primary followed by zero or more argument lists
+    fn call(&mut self) -> Option<Expr> {
+        let mut expr = match self.primary() {
+            Some(e) => e,
+            None => return None,
+        };
+
+        loop {
+            if self.match_token(&[TokenType::LeftParen]) {
+                // consume '('
+                let _ = self.token_source.next_token();
+                expr = match self.finish_call(expr) {
+                    Some(c) => c,
+                    None => return None,
+                };
+            } else {
+                break;
+            }
+        }
+
+        Some(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Option<Expr> {
+        let mut arguments: Vec<Expr> = Vec::new();
+        if !self.match_token(&[TokenType::RightParen]) {
+            // Parse at least one argument, then any following comma-separated args
+            loop {
+                if let Some(arg) = self.expression() {
+                    arguments.push(arg);
+                } else {
+                    return None;
+                }
+
+                if self.match_token(&[TokenType::Comma]) {
+                    // consume comma and continue
+                    let _ = self.token_source.next_token();
+                    // continue loop
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Expect closing ')'
+        let paren = match self.consume(TokenType::RightParen, "Expect ')' after arguments.") {
+            Some(p) => p,
+            None => return None,
+        };
+
+        Some(Expr::Call(crate::parse::expr::CallExpr { callee: Box::new(callee), paren, arguments }))
     }
 
     fn primary(&mut self) -> Option<Expr> {

@@ -5,7 +5,7 @@ Use Rusts cargo to build to an executable
 ### Run
 
     Run `cargo run` to use stdin
-    Run `cargo run <filename>` to use a file as input
+    Run `cargo run -- <filename>` to use a file as input
 
 ### Build
 

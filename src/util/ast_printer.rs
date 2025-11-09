@@ -1,4 +1,4 @@
-use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LogicalExpr, LiteralValue};
+use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LogicalExpr, LiteralValue, CallExpr};
 
 /// The AstPrinter implements the Visitor trait to produce a string representation of the AST.
 pub struct AstPrinter;
@@ -76,6 +76,20 @@ impl Visitor<String> for AstPrinter {
         output.push_str(&expr.left.accept(self));
         output.push_str(" ");
         output.push_str(&expr.right.accept(self));
+        output.push_str(")");
+        output
+    }
+
+    fn visit_call_expr(&mut self, expr: &CallExpr) -> String {
+        let mut output = String::new();
+        output.push_str("(");
+        output.push_str("call");
+        output.push_str(" ");
+        output.push_str(&expr.callee.accept(self));
+        for arg in &expr.arguments {
+            output.push_str(" ");
+            output.push_str(&arg.accept(self));
+        }
         output.push_str(")");
         output
     }
