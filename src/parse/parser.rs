@@ -282,13 +282,13 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Option<Expr> {
-        // Parse the left-hand side as an equality (higher precedence)
-        let expr = self.equality();
+        // Parse the left-hand side as a logic_or (higher precedence than assignment)
+        let expr = self.logic_or();
         if expr.is_none() {
             return None;
         }
 
-        // If we see '=', this is an assignment expression (right-associative)
+    // If we see '=', this is an assignment expression (right-associative)
         if self.match_token(&[TokenType::Equal]) {
             // consume '='
             let equals = self.token_source.next_token().unwrap();
@@ -316,6 +316,44 @@ impl Parser {
 
         // No assignment; return the previously parsed expression
         expr
+    }
+
+    fn logic_or(&mut self) -> Option<Expr> {
+        let mut expr = match self.logic_and() {
+            Some(e) => e,
+            None => return None,
+        };
+
+        while self.match_token(&[TokenType::Or]) {
+            let operator = self.token_source.next_token().unwrap();
+            if let Some(right) = self.logic_and() {
+                expr = Expr::Logical(crate::parse::expr::LogicalExpr { left: Box::new(expr), operator, right: Box::new(right) });
+            } else {
+                self.error(operator, "Expect expression after 'or'.");
+                return None;
+            }
+        }
+
+        Some(expr)
+    }
+
+    fn logic_and(&mut self) -> Option<Expr> {
+        let mut expr = match self.equality() {
+            Some(e) => e,
+            None => return None,
+        };
+
+        while self.match_token(&[TokenType::And]) {
+            let operator = self.token_source.next_token().unwrap();
+            if let Some(right) = self.equality() {
+                expr = Expr::Logical(crate::parse::expr::LogicalExpr { left: Box::new(expr), operator, right: Box::new(right) });
+            } else {
+                self.error(operator, "Expect expression after 'and'.");
+                return None;
+            }
+        }
+
+        Some(expr)
     }
 
     fn equality(&mut self) -> Option<Expr> {

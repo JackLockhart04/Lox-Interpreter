@@ -90,6 +90,31 @@ print num;
 
 // Block scope tests
 print "---- block scope tests ----";
+// Logical operator tests
+print "---- logical tests ----";
+print "hi" or 2; // should print "hi"
+print nil or "yes"; // should print "yes"
+print false and "no"; // should print false
+print "ok" and "yes"; // should print "yes"
+print nil and "no"; // should print nil
+print true or "should not"; // should print true
+print 0 and "x"; // numbers are truthy -> should print "x"
+// Short-circuiting side-effect tests (use assignment as side-effect)
+var sc = false;
+true or (sc = true);
+print sc; // should print false (RHS not evaluated)
+
+var sc2 = false;
+false or (sc2 = true);
+print sc2; // should print true (RHS evaluated)
+
+var sc3 = false;
+false and (sc3 = true);
+print sc3; // should print false (RHS not evaluated)
+
+var sc4 = false;
+true and (sc4 = true);
+print sc4; // should print true (RHS evaluated)
 
 // volume shadowing and assignment to outer variable
 var volume = 11;
@@ -146,7 +171,7 @@ if (2 < 1) { print "if-block false"; } else { print "else for block"; }
 
 var first = true;
 var second = false;
-if (first) if (second) print "both"; else print "dangling else bound to inner";
+if (first) if (second) print "both"; else print "dangling else bound to inner"; // updated line
 
 print a; // global a
 print b; // global b

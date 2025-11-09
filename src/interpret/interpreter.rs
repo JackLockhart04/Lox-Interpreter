@@ -1,4 +1,4 @@
-use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LiteralValue};
+use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LogicalExpr, LiteralValue};
 use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
 use crate::interpret::environment::Environment;
@@ -171,6 +171,26 @@ impl Visitor<Result<Option<LiteralValue>, RuntimeError>> for Interpreter {
 			Ok(()) => Ok(value),
 			Err(msg) => Err(RuntimeError::new(expr.name.clone(), &msg)),
 		}
+	}
+
+	fn visit_logical_expr(&mut self, expr: &LogicalExpr) -> Result<Option<LiteralValue>, RuntimeError> {
+		let left = self.evaluate(&expr.left)?;
+		match expr.operator.get_type() {
+			TokenType::Or => {
+				if Interpreter::is_truthy(&left) {
+					return Ok(left);
+				}
+			}
+			TokenType::And => {
+				if !Interpreter::is_truthy(&left) {
+					return Ok(left);
+				}
+			}
+			_ => {}
+		}
+		// Not short-circuited; evaluate and return right
+		let right = self.evaluate(&expr.right)?;
+		Ok(right)
 	}
 
 	fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> Result<Option<LiteralValue>, RuntimeError> {
