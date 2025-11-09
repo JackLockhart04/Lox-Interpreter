@@ -161,12 +161,18 @@ impl Scanner {
             return;
         }
 
-        // Two character tokens
+        // Two character tokens (and single-character fallbacks like '!' are
+        // produced by check_two_char_token). Only consume the second input
+        // character when we actually produced a two-character token (like
+        // '!=' or '=='). Otherwise don't consume the peeked character.
         let second_char_wrapper = self.source.peek_char();
-        if let Some(two_char_token) = self.check_two_char_token(first_char, second_char_wrapper) {
-            // It's a two-character token
-            self.source.next_char(); // Consume the second character
-            self.next_token_cache = two_char_token;
+        if let Some(tok) = self.check_two_char_token(first_char, second_char_wrapper) {
+            // If the token lexeme length is 2, it's a two-character token
+            // and we should consume the second character from the source.
+            if tok.lexeme.len() == 2 {
+                self.source.next_char(); // Consume the second character
+            }
+            self.next_token_cache = tok;
             return;
         }
 

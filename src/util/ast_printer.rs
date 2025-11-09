@@ -49,4 +49,8 @@ impl Visitor<String> for AstPrinter {
         // Uses the operator's lexeme, and recursively calls print on the right
         self.parenthesize(&expr.operator.lexeme, &[&expr.right])
     }
+
+    fn visit_variable_expr(&mut self, name: &crate::token::token::Token) -> String {
+        name.lexeme.clone()
+    }
 }

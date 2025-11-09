@@ -76,6 +76,11 @@ impl Parser {
         self.errors.clear();
     }
 
+    // Return whether the parser has recorded a parsing error.
+    pub fn had_error(&self) -> bool {
+        self.had_error
+    }
+
     /// Return true if the underlying token source (scanner) has reached EOF.
     pub fn is_at_end(&mut self) -> bool {
         // Previously this delegated to the scanner's `is_at_end()` flag.
@@ -118,24 +123,48 @@ impl Parser {
         }
     }
 
-    /// Parse a full program: a sequence of statements until EOF.
-    pub fn parse(&mut self) -> Vec<Stmt> {
-        let mut statements: Vec<Stmt> = Vec::new();
-        while !self.is_at_end() {
-            if let Some(stmt) = self.statement() {
-                statements.push(stmt);
-            } else {
-                // If statement parsing failed, synchronize and continue.
-                // Errors will have been recorded inside `error`.
-                self.synchronize();
-            }
-        }
-        statements
+    // Parse a full program: a sequence of statements until EOF.
+    pub fn parse(&mut self) -> Option<Stmt> {
+        // either a declaration or a statement.
+        self.declaration()
     }
 
-    /// Return whether the parser has recorded a parsing error.
-    pub fn had_error(&self) -> bool {
-        self.had_error
+    // Parse a declaration (top-level): currently only var declarations or statements.
+    fn declaration(&mut self) -> Option<Stmt> {
+        if self.match_token(&[TokenType::Var]) {
+            // consume the 'var' keyword
+            let _ = self.token_source.next_token();
+            return self.var_declaration();
+        }
+        return self.statement();
+    }
+
+    fn var_declaration(&mut self) -> Option<Stmt> {
+        // Expect an identifier
+        let name = match self.consume(TokenType::Identifier, "Expect variable name.") {
+            Some(t) => t,
+            None => return None,
+        };
+
+        // Optional initializer
+        let mut initializer: Option<Expr> = None;
+        if self.match_token(&[TokenType::Equal]) {
+            // consume '='
+            let _ = self.token_source.next_token();
+            if let Some(expr) = self.expression() {
+                initializer = Some(expr);
+            } else {
+                // expression parse will have recorded an error
+                return None;
+            }
+        }
+
+        // Consume terminating semicolon
+        if self.consume(TokenType::Semicolon, "Expect ';' after variable declaration.").is_none() {
+            return None;
+        }
+
+        Some(Stmt::Var { name, initializer })
     }
 
     fn statement(&mut self) -> Option<Stmt> {
@@ -146,11 +175,6 @@ impl Parser {
             return self.print_statement();
         }
         return self.expression_statement();
-    }
-
-    /// Public wrapper to parse a single statement (useful for REPL loops).
-    pub fn parse_statement(&mut self) -> Option<Stmt> {
-        self.statement()
     }
 
     fn print_statement(&mut self) -> Option<Stmt> {
@@ -414,6 +438,14 @@ impl Parser {
             // let token = self.token_source.next_token().unwrap_or(Token::new_token(TokenType::Eof, "".to_string(), None, 0));
             // self.error(token, "Expect expression.");
             // return None;
+        }
+
+        // Identifier (variable access)
+        if self.match_token(&[TokenType::Identifier]) {
+            // consume identifier
+            if let Some(tok) = self.token_source.next_token() {
+                return Some(Expr::Variable(tok));
+            }
         }
 
         // Not handled: Grouping, Identifiers, etc. For now, throw an error

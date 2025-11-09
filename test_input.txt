@@ -1,3 +1,60 @@
-// Test basic printing
-print 1;
-print "one";
+// Comprehensive test input for implemented features
+
+// Arithmetic and grouping
+print 1 + 2 * 3;           // 1 + (2*3) = 7
+print (1 + 2) * 3;         // (1+2)*3 = 9
+print (2 + (3 * (4 + 1))); // nested grouping = 17
+
+// Unary operators and booleans
+print -5 + 3;              // -5 + 3 = -2
+print false;
+print !false;              // not false = true
+print true;
+print nil;
+
+// Number formatting
+print 3.0;                 // should print 3 (no trailing .0)
+
+// Strings and concatenation
+print "hello";
+print "one " + "two";
+print "one " + 1;        // string + number -> string concatenation
+print 1 + "two";         // number + string -> string concatenation
+
+// Comparisons and equality
+print 3 > 2;
+print 3 >= 3;
+print 2 < 3;
+print 2 <= 2;
+print 1 == 1;
+print 1 != 2;
+print "a" == "a";
+print nil == nil;
+print 1 == "1";         // different types -> false
+
+// Expression statements (no print output expected for the expression itself)
+1;
+print 2;
+
+// Variables: declaration and access
+var beverage = "espresso";
+print beverage;
+
+var x = 10;
+print x;
+
+var y;
+print y;                  // uninitialized var -> nil
+
+var a = 1;
+var b = a + 2;
+print b;
+
+// Mixed-type concatenation
+print "sum: " + (1 + 2);
+
+// Edge cases
+print ("mix" + 3) + " done";
+print !(1 == 2);
+
+// Final newline below

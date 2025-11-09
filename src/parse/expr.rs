@@ -47,6 +47,7 @@ pub enum Expr {
     Grouping(GroupingExpr),
     Literal(LiteralExpr),
     Unary(UnaryExpr),
+    Variable(Token),
     // You'll add more variants here as you expand Lox (e.g., Variable, Call, Assign)
 }
 
@@ -60,6 +61,7 @@ pub trait Visitor<R> {
     fn visit_grouping_expr(&mut self, expr: &GroupingExpr) -> R;
     fn visit_literal_expr(&mut self, expr: &LiteralExpr) -> R;
     fn visit_unary_expr(&mut self, expr: &UnaryExpr) -> R;
+    fn visit_variable_expr(&mut self, name: &Token) -> R;
 }
 
 // --- ACCEPT IMPLEMENTATION ---
@@ -74,6 +76,7 @@ impl Expr {
             Expr::Grouping(expr) => visitor.visit_grouping_expr(expr),
             Expr::Literal(expr) => visitor.visit_literal_expr(expr),
             Expr::Unary(expr) => visitor.visit_unary_expr(expr),
+            Expr::Variable(name) => visitor.visit_variable_expr(name),
         }
     }
 }

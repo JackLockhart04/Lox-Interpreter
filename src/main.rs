@@ -23,13 +23,21 @@ fn main() {
         match Scanner::new_from_file(input_path) {
             Ok(scanner) => {
                 let mut parser = Parser::new(scanner);
-                // Parse the whole file into statements and run them.
-                let statements = parser.parse();
-                if parser.had_error() {
-                    parser.report_errors();
-                    parser.clear_errors();
-                } else {
-                    interpreter.interpret(&statements);
+                // the echoed source (like the REPL behavior).
+                while !parser.is_at_end() {
+                    match parser.parse() {
+                        Some(stmt) => {
+                            interpreter.interpret_stmt(&stmt);
+                        }
+                        None => {
+                            if parser.had_error() {
+                                parser.report_errors();
+                                parser.clear_errors();
+                            }
+                            // continue parsing next declaration/statement
+                            continue;
+                        }
+                    }
                 }
             }
             Err(e) => {
@@ -38,7 +46,6 @@ fn main() {
         }
     } else {
         logger.log(LogLevel::Info, "No input file provided, starting REPL...");
-
         // Interactive REPL: parse and execute one statement per loop iteration.
         loop {
             // Create scanner reading from terminal (it will prompt for a line)
@@ -46,7 +53,7 @@ fn main() {
             let mut parser = Parser::new(scanner);
 
             // Parse a single statement (so the REPL doesn't try to read until EOF).
-            match parser.parse_statement() {
+            match parser.parse() {
                 Some(stmt) => {
                     interpreter.interpret_stmt(&stmt);
                 }

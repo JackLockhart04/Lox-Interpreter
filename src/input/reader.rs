@@ -87,10 +87,19 @@ impl Reader {
                 self.line_position = 0;
                 self.line_number += 1;
 
-                // Print out so we can see file lines being read
+                // Echo the file line being read so file-mode behaves like the REPL.
+                // Ensure we always emit a terminating newline even if the input
+                // file's last line does not include one; otherwise the program's
+                // printed output can appear on the same line as the echoed source.
                 print!("> ");
                 io::stdout().flush().ok();
                 print!("{}", normalized);
+                if !normalized.ends_with('\n') {
+                    // Normalized line lacked a newline (likely the file's last
+                    // line). Emit one so subsequent println!() calls start on
+                    // the next line.
+                    print!("\n");
+                }
                 io::stdout().flush().ok();
 
                 Ok(true)
