@@ -6,9 +6,9 @@ use lox_interpreter::interpret::interpreter::Interpreter;
 fn main() {
     let logger = global_logger();
     logger.set_level(LogLevel::Debug);
-    logger.log(LogLevel::Debug, "Start");
+    global_logger().log(LogLevel::Debug, "main: Start");
 
-    logger.log(LogLevel::Info, "Initializing configuration settings...");
+    global_logger().log(LogLevel::Info, "main: Initializing configuration settings...");
 
     // Choose a scanner based on whether a filename was provided.
     let args: Vec<String> = std::env::args().collect();
@@ -16,16 +16,16 @@ fn main() {
 
     let scanner = if args.len() > 1 {
         let input_path = &args[1];
-        logger.log(LogLevel::Info, format!("Input file provided: {}", input_path));
+    global_logger().log(LogLevel::Info, format!("main: Input file provided: {}", input_path));
         match Scanner::new_from_file(input_path) {
             Ok(s) => s,
             Err(e) => {
-                logger.log(LogLevel::Error, format!("Failed to open file {}: {}", input_path, e));
+                global_logger().log(LogLevel::Error, format!("main: Failed to open file {}: {}", input_path, e));
                 return;
             }
         }
     } else {
-        logger.log(LogLevel::Info, "No input file provided, starting REPL...");
+    global_logger().log(LogLevel::Info, "main: No input file provided, starting REPL...");
         Scanner::new_from_terminal()
     };
 

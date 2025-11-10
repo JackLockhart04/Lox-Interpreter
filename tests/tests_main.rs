@@ -5,3 +5,9 @@ mod input {
 mod token {
     mod token_test;
 }
+mod parser {
+    mod parser_test;
+}
+mod interpret {
+    mod interpreter_test;
+}

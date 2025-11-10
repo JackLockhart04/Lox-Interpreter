@@ -1,7 +1,7 @@
 use crate::input::reader::Reader;
 use crate::token::token::{ Token, TokenType };
 
-use crate::util::logger::{ LogLevel, global_logger };
+use crate::util::logger::LogLevel;
 
 use std::io;
 
@@ -12,6 +12,7 @@ pub struct Scanner {
     at_eof: bool,
     next_token_cache: Token,
     next_token_loaded: bool,
+    errors: Vec<String>,
 }
 
 impl Scanner {
@@ -23,6 +24,7 @@ impl Scanner {
             at_eof: false,
             next_token_cache: Token::new_token(TokenType::Eof, "".to_string(), None, 0),
             next_token_loaded: false,
+            errors: Vec::new(),
         };
         scanner
     }
@@ -34,6 +36,7 @@ impl Scanner {
             at_eof: false,
             next_token_cache: Token::new_token(TokenType::Eof, "".to_string(), None, 0),
             next_token_loaded: false,
+            errors: Vec::new(),
         };
         Ok(scanner)
     }
@@ -127,7 +130,7 @@ impl Scanner {
 
     // Main token loading function
     pub fn load_token(&mut self) {
-        let logger = global_logger();
+    // logger reference no longer needed; use log_component macro instead
         // If we've already hit EOF previously, keep the EOF token in the cache and return silently.
         if self.at_eof {
             self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
@@ -141,7 +144,7 @@ impl Scanner {
             Some(c) => c,
             None => {
                 // Reached EOF
-                logger.log(LogLevel::Debug, "Reached EOF or unrecognized character, setting EOF token");
+                crate::util::logger::global_logger().log(LogLevel::Debug, "scanner: Reached EOF or unrecognized character, setting EOF token");
                 self.at_eof = true;
                 self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
                 return;
@@ -215,8 +218,12 @@ impl Scanner {
                     string_content.push(c);
                 }
             }
-            // If we reach here, the string was not terminated
-            logger.log(LogLevel::Error, "Unterminated string literal");
+            // If we reach here, the string was not terminated. Record an error
+            // so tests can assert on it, and log at Debug so it doesn't print
+            // by default in normal runs.
+            let msg = "Unterminated string literal".to_string();
+            self.errors.push(msg.clone());
+            crate::util::logger::global_logger().log(LogLevel::Debug, format!("scanner: {}", msg));
             self.at_eof = true;
             self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
             return;
@@ -244,9 +251,10 @@ impl Scanner {
                     if Scanner::is_digit(next_c) {
                         number_content.push('.'); // Add the dot
                     } else {
-                        // No digit after dot
-                        // Cause an error
-                        logger.log(LogLevel::Error, "Invalid number format");
+                        // No digit after dot: record an error (invalid number)
+                        let msg = "Invalid number format".to_string();
+                        self.errors.push(msg.clone());
+                        crate::util::logger::global_logger().log(LogLevel::Debug, format!("scanner: {}", msg));
                     }
                 }
             }
@@ -311,7 +319,7 @@ impl Scanner {
             return;
         }
 
-        logger.log(LogLevel::Debug, "Reached EOF or unrecognized character, setting EOF token");
+    crate::util::logger::global_logger().log(LogLevel::Debug, "scanner: Reached EOF or unrecognized character, setting EOF token");
         self.at_eof = true;
         self.next_token_cache = Token::new_token(TokenType::Eof, "".to_string(), None, self.source.get_line_number());
     }
@@ -323,6 +331,12 @@ impl Scanner {
         }
         self.next_token_loaded = false;
         Some(self.next_token_cache.clone())
+    }
+
+    /// Take and return any recorded scanner errors. This clears the internal
+    /// error list so callers can inspect errors after tokenization.
+    pub fn take_errors(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.errors)
     }
 
     pub fn peek_token(&mut self) -> Option<Token> {

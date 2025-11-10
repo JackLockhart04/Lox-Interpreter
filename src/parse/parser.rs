@@ -2,7 +2,7 @@ use crate::input::scanner::Scanner;
 use crate::token::token::{Token, TokenType};
 use crate::parse::expr::{Expr, BinaryExpr, UnaryExpr, GroupingExpr, LiteralExpr, LiteralValue, AssignExpr};
 use crate::parse::stmt::Stmt;
-use crate::util::logger::{global_logger, LogLevel};
+use crate::util::logger::LogLevel;
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -64,10 +64,9 @@ impl Parser {
     }
 
     pub fn report_errors(&mut self) {
-        let logger = global_logger();
-        for error in &self.errors {
+    for error in &self.errors {
             // eprintln!("[line {}] Error at '{}': {}", error.line, error.token.lexeme, error.message);
-            logger.log(LogLevel::Error, format!("[line {}] Error at '{}': {}", error.line, error.token.lexeme, error.message));
+            crate::util::logger::global_logger().log(LogLevel::Error, format!("parser: [line {}] Error at '{}': {}", error.line, error.token.lexeme, error.message));
         }
         self.had_error = false;
     }

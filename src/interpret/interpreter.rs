@@ -2,7 +2,7 @@ use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, U
 use crate::parse::stmt::{Stmt, Visitor as StmtVisitor};
 use crate::token::token::{TokenType, Token};
 use crate::interpret::environment::Environment;
-use crate::util::logger::{global_logger, LogLevel};
+use crate::util::logger::LogLevel;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::interpret::value::Value;
@@ -34,6 +34,16 @@ impl Interpreter {
 		globals.borrow_mut().define("clock", Some(crate::interpret::value::Value::Native(std::rc::Rc::new(clock))));
 
 		Interpreter { environment: globals }
+	}
+
+	// Return the value of a global variable by name, if defined.
+	// This is primarily for tests to inspect the interpreter's global state.
+	pub fn get_global(&self, name: &str) -> Option<crate::interpret::value::Value> {
+		let token = Token::new_token(TokenType::Identifier, name.to_string(), None, 0);
+		match self.environment.borrow().get(&token) {
+			Ok(v) => v,
+			Err(_) => None,
+		}
 	}
 }
 
@@ -92,7 +102,7 @@ impl Visitor<Result<Option<Value>, RuntimeError>> for Interpreter {
 		let left_val = self.evaluate(&_expr.left)?;
 		let right_val = self.evaluate(&_expr.right)?;
 
-		let logger = global_logger();
+        
 
 		// Helper to extract number
 		let as_number = |v: &Option<Value>| -> Option<f64> {
@@ -167,9 +177,9 @@ impl Visitor<Result<Option<Value>, RuntimeError>> for Interpreter {
 			TokenType::EqualEqual => {
 				return Ok(Some(Value::Bool(Interpreter::is_equal(&left_val, &right_val))));
 			}
-			_ => {
+				_ => {
 				// Unsupported operator
-				logger.log(LogLevel::Error, "Unsupported binary operator.");
+				crate::util::logger::global_logger().log(LogLevel::Error, "interpreter: Unsupported binary operator.");
 				return Ok(None);
 			}
 		}
@@ -236,8 +246,7 @@ impl Visitor<Result<Option<Value>, RuntimeError>> for Interpreter {
 				return Ok(Some(Value::Bool(!Interpreter::is_truthy(&right))));
 			}
 			_ => {
-				let logger = global_logger();
-				logger.log(LogLevel::Error, "Unsupported unary operator.");
+				crate::util::logger::global_logger().log(LogLevel::Error, "interpreter: Unsupported unary operator.");
 				return Ok(None);
 			}
 		}

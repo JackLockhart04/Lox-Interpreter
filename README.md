@@ -16,6 +16,7 @@ Use Rusts cargo to build to an executable
 
     Run `cargo test` for normal
     Run `cargo test --test '*'` for easier to read output
+    Run `RUST_TEST_THREADS=1 cargo test --test '*'` for output grouped by test type
 
 # Git
 
