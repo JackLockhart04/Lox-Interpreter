@@ -36,8 +36,8 @@ fn scanner_from_file() -> TestResult {
     
     // Iterate through the expected characters and compare them to what the reader returns.
     for expected_token_type in expected_token_types {
-        // Test peek
-        let peeked_token = scanner.peek_token();
+    // Test peek
+    let _peeked_token = scanner.peek_token();
         
 
         // Test next_token

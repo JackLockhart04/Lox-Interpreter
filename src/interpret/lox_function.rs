@@ -9,11 +9,14 @@ use crate::interpret::callable::LoxCallable;
 #[derive(Debug, Clone)]
 pub struct LoxFunction {
     pub declaration: Stmt,
+    // The environment that was active when the function was declared.
+    // This is the "closure" that lets the function access surrounding locals.
+    pub closure: std::rc::Rc<std::cell::RefCell<crate::interpret::environment::Environment>>,
 }
 
 impl LoxFunction {
-    pub fn new(declaration: Stmt) -> Self {
-        LoxFunction { declaration }
+    pub fn new(declaration: Stmt, closure: std::rc::Rc<std::cell::RefCell<crate::interpret::environment::Environment>>) -> Self {
+        LoxFunction { declaration, closure }
     }
 
     pub fn arity(&self) -> usize {
@@ -24,8 +27,9 @@ impl LoxFunction {
     }
 
     pub fn call(&self, interpreter: &mut crate::interpret::interpreter::Interpreter, arguments: &Vec<Value>) -> Result<Option<Value>, RuntimeError> {
-        // Create a new environment for the function execution, enclosing the global environment
-        let env = Rc::new(RefCell::new(Environment::new_enclosing(interpreter.globals.clone())));
+    // Create a new environment for the function execution, enclosing the closure
+    // captured when the function was declared.
+    let env = Rc::new(RefCell::new(Environment::new_enclosing(self.closure.clone())));
 
         // Bind parameters from the function declaration
         if let Stmt::Function { params, body, .. } = &self.declaration {
