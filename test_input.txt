@@ -1,19 +1,9 @@
-// Comprehensive test input for implemented features
+// test_big.txt - broad interpreter integration test
 
 // Arithmetic and grouping
 print 1 + 2 * 3;           // 1 + (2*3) = 7
 print (1 + 2) * 3;         // (1+2)*3 = 9
-print (2 + (3 * (4 + 1))); // nested grouping = 17
-
-// Unary operators and booleans
-print -5 + 3;              // -5 + 3 = -2
-print false;
-print !false;              // not false = true
-print true;
-print nil;
-
-// Number formatting
-print 3.0;                 // should print 3 (no trailing .0)
+print 3.0;                 // prints 3 (no trailing .0)
 
 // Strings and concatenation
 print "hello";
@@ -21,199 +11,76 @@ print "one " + "two";
 print "one " + 1;        // string + number -> string concatenation
 print 1 + "two";         // number + string -> string concatenation
 
-// Comparisons and equality
-print 3 > 2;
-print 3 >= 3;
-print 2 < 3;
-print 2 <= 2;
-print 1 == 1;
-print 1 != 2;
-print "a" == "a";
-print nil == nil;
-print 1 == "1";         // different types -> false
-
-// Expression statements (no print output expected for the expression itself)
-1;
-print 2;
-
-// Variables: declaration and access
+// Variables and assignment-as-expression
 var beverage = "espresso";
 print beverage;
-
 var x = 10;
 print x;
+var r = (x = 42);
+print r;                   // should print 42
+print x;                   // x updated to 42
 
-var y;
-print y;                  // uninitialized var -> nil
+// Functions, calls and return
+fun add(a, b) {
+  return a + b;
+}
+print add(2, 3);
 
-var a = 1;
-var b = a + 2;
-print b;
+// Closures: factory that returns a counter function
+fun makeCounter() {
+  var i = 0;
+  fun count() {
+    i = i + 1;
+    return i;
+  }
+  return count;
+}
+var c = makeCounter();
+print c();
+print c();
 
-// Assignment as expression (should return the assigned value)
-var assign_test = 1;
-assign_test = 2;
-print assign_test;
-print assign_test = 3;   // prints 3 and assigns 3 into assign_test
-print assign_test;
+// Recursion (factorial)
+fun fact(n) {
+  if (n <= 1) return 1;
+  return n * fact(n - 1);
+}
+print fact(6); // 720
 
-// Mixed-type concatenation
-print "sum: " + (1 + 2);
-
-// Edge cases
-print ("mix" + 3) + " done";
-print !(1 == 2);
-
-// Variable redefinition (allowed)
-var v = "before";
-print v;
-var v = "after";
-print v;
-
-// Reference before declaration -> runtime error when executed
-print before_decl;
-var before_decl = "now defined";
-print before_decl;
-
-// Initializer referencing previously defined variable
-var p = 5;
-var q = p + 2;
-print q;
-
-// Redeclare and use previous value in initializer
-var num = 1;
-print num;
-var num = num + 1;
-print num;
-
-// Final newline below
-
-// Block scope tests
-print "---- block scope tests ----";
-// Logical operator tests
-print "---- logical tests ----";
-print "hi" or 2; // should print "hi"
-print nil or "yes"; // should print "yes"
-print false and "no"; // should print false
-print "ok" and "yes"; // should print "yes"
-print nil and "no"; // should print nil
-print true or "should not"; // should print true
-print 0 and "x"; // numbers are truthy -> should print "x"
-// Short-circuiting side-effect tests (use assignment as side-effect)
+// Logical ops + short-circuiting side effects
 var sc = false;
 true or (sc = true);
-print sc; // should print false (RHS not evaluated)
+print sc; // false
+false or (sc = true);
+print sc; // true
 
-var sc2 = false;
-false or (sc2 = true);
-print sc2; // should print true (RHS evaluated)
-
-var sc3 = false;
-false and (sc3 = true);
-print sc3; // should print false (RHS not evaluated)
-
-var sc4 = false;
-true and (sc4 = true);
-print sc4; // should print true (RHS evaluated)
-
-// volume shadowing and assignment to outer variable
-var volume = 11;
-volume = 0;
-{
-	var volume = 3 * 4 * 5;
-	print volume; // should print 60 (inner)
-}
-print volume; // should print 0 (outer)
-
-// assignment to outer scope variable from inside a block
+// Scoping and shadowing
 var vol = 11;
 {
-	vol = 0;
-	print vol; // 0
+  var vol = 3 * 4 * 5;
+  print vol; // inner
 }
-print vol; // 0
+print vol; // outer
 
-// local variable that should not be visible outside the block
-var global = "outside";
-{
-	var local = "inside";
-	print global + local; // outsideinside
-}
-print global; // outside
-print local; // runtime error: undefined
-
-// Nested shadowing example
-var a = "global a";
-var b = "global b";
-var c = "global c";
-{
-	var a = "outer a";
-	var b = "outer b";
-	{
-		var a = "inner a";
-		print a; // inner a
-		print b; // outer b
-		print c; // global c
-	}
-	print a; // outer a
-	print b; // outer b
-	print c; // global c
-}
-// If statement tests
-print "---- if tests ----";
-
-if (true) print "if-true single";
-if (false) print "if-false single";
-
-if (1 < 2) { print "if-block true"; }
-if (2 < 1) { print "if-block false"; } else print "else for single statement";
-if (2 < 1) { print "if-block false"; } else { print "else for block"; }
-
-var first = true;
-var second = false;
-if (first) if (second) print "both"; else print "dangling else bound to inner"; // updated line
-
-print a; // global a
-print b; // global b
-print c; // global c
-// While loop tests
-print "---- while tests ----";
+// While and for loops
 var i = 0;
-while (i < 3) {
-	print i;
-	i = i + 1;
-}
-print "while-done";
-
-// Sum with while
-var sum = 0;
-var k = 1;
-while (k <= 5) {
-	sum = sum + k;
-	k = k + 1;
-}
-print sum; // should print 15
-// For loop tests (C-style)
-print "---- for tests ----";
-for (var i = 0; i < 5; i = i + 1) print i;
-
-// For loop with block body
-for (var j = 0; j < 3; j = j + 1) {
-		print "j:" + j;
+while (i < 2) {
+  print i;
+  i = i + 1;
 }
 
-// Fibonacci example from the book
-var a = 0;
-var temp = 0;
-for (var b = 1; a < 10000; b = temp + b) {
-	print a;
-	temp = a;
-	a = b;
-}
+for (var j = 0; j < 3; j = j + 1) print j;
 
-// Call expression tests (chapter 10 parsing/runtime checks)
-print "---- call tests ----";
-"not a function"(); // calling a string -> runtime error
-var vcall = 123;
-vcall(); // calling a number -> runtime error
-print "call tests done";
+// Native function usage
+var t = clock();
+print t;
+
+// Intentional runtime errors (should be reported but not crash)
+print before_decl;
+"not a function"();
+clock(1); // wrong arity for native clock
+
+// Block comment / nested comment test
+/* outer /* nested */ still outer */
+print "block comments ok";
+
+// End

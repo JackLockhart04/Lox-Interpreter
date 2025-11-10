@@ -19,7 +19,7 @@ pub struct Logger {
 }
 
 impl Logger {
-    /// Creates a new logger instance with the specified minimum log level.
+    // Creates a new logger instance with the specified minimum log level.
     pub fn new(min_level: LogLevel) -> Self {
         println!("Logger initialized with minimum level: {:?}", min_level);
         Logger { 
@@ -28,7 +28,7 @@ impl Logger {
         }
     }
 
-    /// Sets the minimum log level for the logger.
+    // Sets the minimum log level for the logger.
     pub fn set_level(&self, new_level: LogLevel) {
         // Lock the Mutex to safely update the level
         let mut level = self.min_level.lock().unwrap();
@@ -36,7 +36,7 @@ impl Logger {
         println!("Logger level set to: {:?}", new_level);
     }
 
-    /// The core logging method.
+    // The core logging method.
     pub fn log<T: Display>(&self, level: LogLevel, message: T) {
         // Lock the Mutex to read the current minimum level
         let current_min_level = *self.min_level.lock().unwrap();
@@ -66,7 +66,7 @@ impl Logger {
 // The static global logger instance
 static GLOBAL_LOGGER: LazyLock<Logger> = LazyLock::new(|| Logger::new(LogLevel::Info));
 
-/// Accessor function to get a reference to the global Logger.
+// Accessor function to get a reference to the global Logger.
 pub fn global_logger() -> &'static Logger {
     &GLOBAL_LOGGER
 }

@@ -1,15 +1,15 @@
 use crate::parse::expr::{Expr, Visitor, BinaryExpr, GroupingExpr, LiteralExpr, UnaryExpr, AssignExpr, LogicalExpr, LiteralValue, CallExpr};
 
-/// The AstPrinter implements the Visitor trait to produce a string representation of the AST.
+// The AstPrinter implements the Visitor trait to produce a string representation of the AST.
 pub struct AstPrinter;
 
 impl AstPrinter {
-    /// Convenience method to print a full expression.
+    // Convenience method to print a full expression.
     pub fn print(&mut self, expr: &Expr) -> String {
         expr.accept(self)
     }
 
-    /// Helper function to generate Lisp-style parenthesized output.
+    // Helper function to generate Lisp-style parenthesized output.
     fn parenthesize(&mut self, name: &str, parts: &[&Expr]) -> String {
         let mut output = String::new();
         output.push_str("(");

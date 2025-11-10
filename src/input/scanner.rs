@@ -333,8 +333,8 @@ impl Scanner {
         Some(self.next_token_cache.clone())
     }
 
-    /// Take and return any recorded scanner errors. This clears the internal
-    /// error list so callers can inspect errors after tokenization.
+    // Take and return any recorded scanner errors. This clears the internal
+    // error list so callers can inspect errors after tokenization.
     pub fn take_errors(&mut self) -> Vec<String> {
         std::mem::take(&mut self.errors)
     }

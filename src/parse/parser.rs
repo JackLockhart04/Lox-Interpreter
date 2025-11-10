@@ -80,7 +80,7 @@ impl Parser {
         self.had_error
     }
 
-    /// Return true if the underlying token source (scanner) has reached EOF.
+    // Return true if the underlying token source (scanner) has reached EOF.
     pub fn is_at_end(&mut self) -> bool {
         // Previously this delegated to the scanner's `is_at_end()` flag.
         // That can race with the parser's control flow if the scanner only

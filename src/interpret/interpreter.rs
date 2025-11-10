@@ -7,8 +7,8 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use crate::interpret::value::Value;
 
-/// The Interpreter evaluates expressions and returns runtime values.
-/// It keeps a simple global environment (flat scope) for variable declarations.
+// The Interpreter evaluates expressions and returns runtime values.
+// It keeps a simple global environment (flat scope) for variable declarations.
 pub struct Interpreter {
 	environment: Rc<RefCell<Environment>>,
 }
@@ -70,9 +70,9 @@ impl Interpreter {
 		}
 	}
 
-	/// Execute a list of statements (a program). Errors are reported via
-	/// crate::lox::runtime_error but the interpreter continues executing
-	/// subsequent statements.
+	// Execute a list of statements (a program). Errors are reported via
+	// crate::lox::runtime_error but the interpreter continues executing
+	// subsequent statements.
 	pub fn interpret(&mut self, statements: &Vec<Stmt>) {
 		for stmt in statements {
 			if let Err(e) = self.execute(stmt) {
@@ -88,7 +88,7 @@ impl Interpreter {
 }
 
 impl Interpreter {
-	/// Execute a single statement and report runtime errors via Lox runtime_error.
+	// Execute a single statement and report runtime errors via Lox runtime_error.
 	pub fn interpret_stmt(&mut self, stmt: &Stmt) {
 		if let Err(e) = self.execute(stmt) {
 			crate::lox::runtime_error(&e.token, &e.message);

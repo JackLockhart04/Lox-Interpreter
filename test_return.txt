@@ -1,5 +1,0 @@
-fun addret(a, b) {
-  return a + b;
-}
-
-print addret(2, 3);

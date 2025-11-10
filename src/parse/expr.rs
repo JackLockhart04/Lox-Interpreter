@@ -90,12 +90,10 @@ pub trait Visitor<R> {
     fn visit_call_expr(&mut self, expr: &CallExpr) -> R;
 }
 
-// --- ACCEPT IMPLEMENTATION ---
-
 impl Expr {
-    /// The "accept" method, which performs the double dispatch.
-    /// It matches on the specific expression type and calls the corresponding 
-    /// visit method on the provided visitor object.
+    // The "accept" method, which performs the double dispatch.
+    // It matches on the specific expression type and calls the corresponding 
+    // visit method on the provided visitor object.
     pub fn accept<R>(&self, visitor: &mut dyn Visitor<R>) -> R {
         match self {
             Expr::Binary(expr) => visitor.visit_binary_expr(expr),
